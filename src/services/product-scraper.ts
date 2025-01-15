@@ -96,18 +96,61 @@ export class ProductScraperService {
           continue;
         }
 
+        // Prepare review summary
+        // Calculate average rating from stars breakdown
+        let averageRating = 0;
+        if (product.starsBreakdown) {
+          averageRating = (
+            (product.starsBreakdown['5star'] || 0) * 5 +
+            (product.starsBreakdown['4star'] || 0) * 4 +
+            (product.starsBreakdown['3star'] || 0) * 3 +
+            (product.starsBreakdown['2star'] || 0) * 2 +
+            (product.starsBreakdown['1star'] || 0) * 1
+          );
+        }
+
+        const reviewSummary = {
+          rating: averageRating,
+          reviewCount: product.reviewsCount,
+          starsBreakdown: product.starsBreakdown ? {
+            '5star': product.starsBreakdown['5star'] || 0,
+            '4star': product.starsBreakdown['4star'] || 0,
+            '3star': product.starsBreakdown['3star'] || 0,
+            '2star': product.starsBreakdown['2star'] || 0,
+            '1star': product.starsBreakdown['1star'] || 0
+          } : {
+            '5star': 0,
+            '4star': 0,
+            '3star': 0,
+            '2star': 0,
+            '1star': 0
+          },
+          verifiedPurchases: product.reviews?.filter(r => r.verified).length || 0,
+          lastUpdated: new Date().toISOString()
+        };
+        
+        // Ensure thumbnailImage is the first image if available
+        const images = product.thumbnailImage 
+          ? [product.thumbnailImage, ...(product.images || []).filter(img => img !== product.thumbnailImage)]
+          : product.images;
+
         const { error } = await supabase.from('products').upsert({
           asin: product.asin,
           title: product.title,
           brand: product.brand,
           price: typeof product.price === 'object' ? product.price.value : product.price,
           currency: product.currency,
-          rating: product.rating,
-          review_count: product.reviewCount,
-          images: product.images,
+          images: images,
           categories: product.categories,
           features: product.features,
           description: product.description,
+          reviews: product.reviews || [],
+          review_data: {
+            totalReviews: product.reviewsCount || 0,
+            scrapedReviews: product.reviews?.length || 0,
+            lastScraped: new Date().toISOString()
+          },
+          review_summary: reviewSummary,
           status: 'active',
           updated_at: new Date().toISOString(),
         }, {

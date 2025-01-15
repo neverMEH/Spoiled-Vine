@@ -29,11 +29,13 @@ import { DataTableToolbar } from "./data-table-toolbar";
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
+  onRefresh?: () => Promise<void>;
 }
 
 export function DataTable<TData, TValue>({
   columns,
   data,
+  onRefresh,
 }: DataTableProps<TData, TValue>) {
   const [rowSelection, setRowSelection] = React.useState({});
   const [columnVisibility, setColumnVisibility] =
@@ -98,7 +100,9 @@ export function DataTable<TData, TValue>({
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
                       {flexRender(
-                        cell.column.columnDef.cell,
+                        cell.column.columnDef.cell === columns[columns.length - 1].cell
+                          ? (props: any) => columns[columns.length - 1].cell!({ ...props, onRefresh })
+                          : cell.column.columnDef.cell,
                         cell.getContext()
                       )}
                     </TableCell>

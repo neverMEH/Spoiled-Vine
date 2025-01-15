@@ -32,17 +32,33 @@ export function ListPage() {
 
       if (error) throw error;
 
-      const formattedProducts: ProductRow[] = data.map(product => ({
-        id: product.id,
-        brand: product.brand || 'Unknown',
-        asin: product.asin,
-        title: product.title,
-        price: product.price || 0,
-        rating: product.rating || 0,
-        reviewCount: product.review_count || 0,
-        lastUpdated: product.updated_at,
-        status: product.status || 'active'
-      }));
+      const formattedProducts: ProductRow[] = data.map(product => {
+        // Calculate average rating from stars breakdown
+        let rating = 0;
+        if (product.review_summary?.starsBreakdown) {
+          const breakdown = product.review_summary.starsBreakdown;
+          rating = (
+            breakdown['5star'] * 5 +
+            breakdown['4star'] * 4 +
+            breakdown['3star'] * 3 +
+            breakdown['2star'] * 2 +
+            breakdown['1star'] * 1
+          );
+        }
+
+        return {
+          id: product.id,
+          brand: product.brand || 'Unknown',
+          asin: product.asin,
+          title: product.title,
+          price: product.price || 0,
+          rating: rating,
+          reviewCount: typeof product.review_summary === 'object' ? 
+            parseInt(product.review_summary.reviewCount) || 0 : 0,
+          lastUpdated: product.updated_at,
+          status: product.status || 'active'
+        };
+      });
 
       setProducts(formattedProducts);
     } catch (error) {
@@ -93,7 +109,11 @@ export function ListPage() {
                 <LoadingSpinner size="lg" />
               </div>
             ) : (
-              <DataTable columns={columns} data={products} />
+              <DataTable 
+                columns={columns} 
+                data={products} 
+                onRefresh={fetchProducts}
+              />
             )}
           </div>
         </Section>

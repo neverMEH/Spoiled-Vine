@@ -17,11 +17,29 @@ interface ApifyProduct {
   currency: string;
   brand: string;
   rating: number;
-  reviewCount: number;
+  reviewsCount: number;
+  starsBreakdown?: {
+    '5star': number;
+    '4star': number;
+    '3star': number;
+    '2star': number;
+    '1star': number;
+  };
+  thumbnailImage?: string;
   images: string[];
   categories: string[];
   features: string[];
   description: string;
+  reviews?: {
+    id: string;
+    title: string;
+    text: string;
+    rating: number;
+    date: string;
+    verified: boolean;
+    author: string;
+    images?: string[];
+  }[];
 }
 
 class ApifyService {
@@ -103,8 +121,8 @@ class ApifyService {
     const input = {
       asins: uniqueAsins,
       amazonDomain: "amazon.com",
-      maxReviews: 0,
-      scrapeReviews: false,
+      maxReviews: 100,
+      scrapeReviews: true,
       scrapeDescription: true,
       scrapeFilters: true,
       scrapeVariants: false,
