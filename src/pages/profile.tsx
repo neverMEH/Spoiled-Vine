@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase';
 import { Container } from '@/components/layout/container';
 import { Section } from '@/components/layout/section';
 import { Button } from '@/components/ui/button';
+import { useNavigate } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -37,7 +38,8 @@ import {
   Upload,
   Mail,
   Eye,
-  Key,
+  Key, 
+  ArrowLeft
 } from 'lucide-react';
 
 const profileSchema = z.object({
@@ -52,6 +54,7 @@ type ProfileFormData = z.infer<typeof profileSchema>;
 export function ProfilePage() {
   const { user, updateProfile } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
@@ -143,12 +146,22 @@ export function ProfilePage() {
     <div className="min-h-screen bg-background">
       <Container>
         <Section>
-          <div className="space-y-6">
-            <div>
+          <div className="space-y-8">
+            <div className="flex items-center justify-between">
+              <div>
               <h1 className="text-3xl font-bold tracking-tight">Profile</h1>
               <p className="text-muted-foreground">
                 Manage your account settings and preferences
               </p>
+              </div>
+              <Button
+                variant="outline"
+                onClick={() => navigate('/dashboard')}
+                className="flex items-center gap-2"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Back to Dashboard
+              </Button>
             </div>
 
             <Tabs defaultValue="general" className="space-y-4">

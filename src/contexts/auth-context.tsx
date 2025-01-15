@@ -155,25 +155,41 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setError(null);
       if (!user) throw new Error('No user logged in');
       
-      // Update users table
       const userData = {
         id: user.id,
         email: user.email,
-        full_name: data.full_name || null,
-        bio: data.bio || null,
-        location: data.location || null,
-        updated_at: new Date().toISOString()
+        full_name: data.full_name,
+        bio: data.bio,
+        location: data.location
       };
 
-
-      const { error: profileError } = await supabase
+      const { data: updatedProfile, error: profileError } = await supabase
         .from('users')
         .upsert(userData, {
-          onConflict: 'id'
+          onConflict: 'id',
+          returning: 'representation'
         });
 
       if (profileError) {
         throw profileError;
+      }
+
+      // Update the user metadata in auth
+      const { data: { user: updatedUser }, error: updateError } = await supabase.auth.updateUser({
+        data: {
+          full_name: data.full_name,
+          bio: data.bio,
+          location: data.location
+        }
+      });
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      // Update local user state
+      if (updatedUser) {
+        setUser(updatedUser);
       }
 
       toast({
