@@ -5,16 +5,31 @@ import { Section } from '@/components/layout/section';
 import { Button } from '@/components/ui/button';
 import { AsinInput } from '@/components/forms/asin-input';
 import { ArrowLeft } from 'lucide-react';
+import { productScraperService } from '@/services/product-scraper';
+import { useToast } from '@/hooks/use-toast';
 
 export function GatherPage() {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
 
   const handleAsinSubmit = async (asins: string[]) => {
     try {
       setIsProcessing(true);
-      // TODO: Implement ASIN processing logic
-      console.log('Processing ASINs:', asins);
+      const taskId = await productScraperService.startScraping(asins);
+      
+      toast({
+        title: 'Processing Started',
+        description: `Started processing ${asins.length} products. You can view the progress in the Products list.`,
+      });
+      
+      navigate('/reviews');
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to process ASINs',
+        variant: 'destructive',
+      });
     } finally {
       setIsProcessing(false);
     }

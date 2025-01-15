@@ -1,42 +1,61 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Container } from '@/components/layout/container';
 import { Section } from '@/components/layout/section';
 import { Button } from '@/components/ui/button';
 import { DataTable } from '@/components/data-table/data-table';
-import { columns } from '@/components/data-table/columns';
+import { columns, Product } from '@/components/data-table/columns';
 import { ArrowLeft, Plus } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
+import { useToast } from '@/hooks/use-toast';
+import { LoadingSpinner } from '@/components/feedback/loading-spinner';
 
-// Sample data
-const data = [
-  {
-    id: '1',
-    brand: 'Amazon Basics',
-    asin: 'B01NBKTPTS',
-    title: 'Amazon Basics High-Back Executive Swivel Office Desk Chair',
-    price: 159.99,
-    rating: 4.5,
-    reviewCount: 1234,
-    lastUpdated: '2024-01-15T12:00:00Z',
-    status: 'active',
-  },
-  {
-    id: '2',
-    brand: 'Samsung',
-    asin: 'B08FYTSXGQ',
-    title: 'SAMSUNG 34-Inch Odyssey G5 Ultra-Wide Gaming Monitor',
-    price: 549.99,
-    rating: 4.7,
-    reviewCount: 2567,
-    lastUpdated: '2024-01-14T15:30:00Z',
-    status: 'active',
-  },
-  // Add more sample data as needed
-];
+type ProductRow = Product & { id: string };
 
 export function ListPage() {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [products, setProducts] = useState<ProductRow[]>([]);
+
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
+  const fetchProducts = async () => {
+    try {
+      setIsLoading(true);
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .order('updated_at', { ascending: false });
+
+      if (error) throw error;
+
+      const formattedProducts: ProductRow[] = data.map(product => ({
+        id: product.id,
+        brand: product.brand || 'Unknown',
+        asin: product.asin,
+        title: product.title,
+        price: product.price || 0,
+        rating: product.rating || 0,
+        reviewCount: product.review_count || 0,
+        lastUpdated: product.updated_at,
+        status: product.status || 'active'
+      }));
+
+      setProducts(formattedProducts);
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch products',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -69,7 +88,13 @@ export function ListPage() {
               </div>
             </div>
 
-            <DataTable columns={columns} data={data} />
+            {isLoading ? (
+              <div className="flex justify-center py-8">
+                <LoadingSpinner size="lg" />
+              </div>
+            ) : (
+              <DataTable columns={columns} data={products} />
+            )}
           </div>
         </Section>
       </Container>
