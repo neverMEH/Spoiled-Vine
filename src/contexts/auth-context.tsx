@@ -31,57 +31,115 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [error, setError] = useState<AuthError | null>(null);
   const { toast } = useToast();
 
+  const clearAuthState = async () => {
+    // Clear Supabase session storage
+    localStorage.removeItem('sb-' + new URL(supabase.supabaseUrl).hostname + '-auth-token');
+    
+    // Clear state
+    setSession(null);
+    setUser(null);
+    setIsLoading(false);
+    setError(null);
+  };
+
   useEffect(() => {
+    let mounted = true;
+
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setIsLoading(false);
+      if (mounted) {
+        setSession(session);
+        setUser(session?.user ?? null);
+        setIsLoading(false);
+      }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setIsLoading(false);
-    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (!mounted) return;
 
-    return () => subscription.unsubscribe();
+        if (event === 'SIGNED_OUT') {
+          await clearAuthState();
+          return;
+        }
+
+        if (mounted) {
+          setSession(session);
+          setUser(session?.user ?? null);
+          setIsLoading(false);
+        }
+      }
+    );
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {
     try {
       setError(null);
+      setIsLoading(true);
+      
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
+      
       if (error) throw error;
+      
+      // Get the session after successful sign in
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        setSession(session);
+        setUser(session.user);
+      }
+      
     } catch (err) {
+      console.error('Sign in error:', err);
       setError(err as AuthError);
       throw err;
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const signUp = async (email: string, password: string) => {
     try {
       setError(null);
+      setIsLoading(true);
+      
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
       });
+      
       if (error) throw error;
+
       return { error: null, data };
     } catch (err) {
+      console.error('Sign up error:', err);
       setError(err as AuthError);
       return { error: err, data: null };
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const signOut = async () => {
     try {
       setError(null);
+      
+      // First clear local state and storage
+      await clearAuthState();
+      
+      // Then sign out from Supabase
       const { error } = await supabase.auth.signOut();
+
       if (error) throw error;
+      
     } catch (err) {
+      console.error('Error signing out:', err);
       setError(err as AuthError);
       throw err;
     }
@@ -96,30 +154,38 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       setError(null);
       if (!user) throw new Error('No user logged in');
-
-      const updates = {
+      
+      // Update users table
+      const userData = {
         id: user.id,
-        updated_at: new Date().toISOString(),
-        ...data,
+        email: user.email,
+        full_name: data.full_name || null,
+        bio: data.bio || null,
+        location: data.location || null,
+        updated_at: new Date().toISOString()
       };
 
-      const { error } = await supabase
-        .from('users')
-        .update(updates)
-        .eq('id', user.id)
-        .single();
 
-      if (error) throw error;
+      const { error: profileError } = await supabase
+        .from('users')
+        .upsert(userData, {
+          onConflict: 'id'
+        });
+
+      if (profileError) {
+        throw profileError;
+      }
 
       toast({
         title: 'Profile updated',
         description: 'Your profile has been updated successfully.',
       });
+      
+      return;
     } catch (err) {
-      setError(err as AuthError);
       toast({
         title: 'Error',
-        description: 'Failed to update profile. Please try again.',
+        description: err instanceof Error ? err.message : 'Failed to update profile',
         variant: 'destructive',
       });
       throw err;

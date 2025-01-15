@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useAuth } from '@/hooks/use-auth';
+import { supabase } from '@/lib/supabase';
 import { Container } from '@/components/layout/container';
 import { Section } from '@/components/layout/section';
 import { Button } from '@/components/ui/button';
@@ -52,6 +53,7 @@ export function ProfilePage() {
   const { user, updateProfile } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [preferences, setPreferences] = useState({
     emailNotifications: true,
@@ -63,33 +65,73 @@ export function ProfilePage() {
   const {
     register,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isDirty },
+    reset,
   } = useForm<ProfileFormData>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
-      fullName: user?.user_metadata?.full_name || '',
+      fullName: user?.user_metadata?.full_name || user?.user_metadata?.full_name || '',
       email: user?.email || '',
-      bio: user?.user_metadata?.bio || '',
-      location: user?.user_metadata?.location || '',
+      bio: '',
+      location: '',
     },
   });
 
+  // Fetch profile data from users table when component mounts
+  useEffect(() => {
+    async function fetchProfileData() {
+      if (!user) return;
+      
+      const { data, error } = await supabase
+        .from('users')
+        .select('bio, location')
+        .eq('id', user.id)
+        .single();
+
+      if (data && !error) {
+        reset({
+          fullName: user.user_metadata?.full_name || '',
+          email: user.email || '',
+          bio: data.bio || '',
+          location: data.location || '',
+        });
+      }
+    }
+
+    fetchProfileData();
+  }, [user, reset]);
+
   const onSubmit = async (data: ProfileFormData) => {
+    if (!isDirty) {
+      toast({
+        title: 'No changes',
+        description: 'No changes were made to your profile',
+      });
+      return;
+    }
+
     try {
       setIsLoading(true);
+      setError(null);
+
+      console.log('Profile form submission:', JSON.stringify(data, null, 2));
+
       await updateProfile({
         full_name: data.fullName,
         bio: data.bio,
         location: data.location,
       });
-      toast({
-        title: 'Profile updated',
-        description: 'Your profile has been updated successfully.',
-      });
+
+      // Reset form with the same values to clear dirty state
+      reset(data, { keepValues: true });
+      
     } catch (error) {
+      console.error('Profile form submission error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update profile';
+      setError(errorMessage);
       toast({
         title: 'Error',
-        description: 'Failed to update profile. Please try again.',
+        description: errorMessage,
         variant: 'destructive',
       });
     } finally {
@@ -135,6 +177,12 @@ export function ProfilePage() {
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
+                      {error && (
+                        <div className="p-3 text-sm text-red-500 bg-red-50 dark:bg-red-950/50 rounded-md">
+                          {error}
+                        </div>
+                      )}
+
                       <div className="flex items-center space-x-4">
                         <Avatar className="h-20 w-20">
                           <AvatarImage
@@ -194,11 +242,14 @@ export function ProfilePage() {
                         />
                       </div>
 
-                      <Button type="submit" disabled={isLoading}>
+                      <Button 
+                        type="submit" 
+                        disabled={isLoading || !isDirty}
+                      >
                         {isLoading ? (
                           <LoadingSpinner className="mr-2" size="sm" />
                         ) : null}
-                        Save Changes
+                        {isLoading ? 'Saving...' : 'Save Changes'}
                       </Button>
                     </CardContent>
                   </Card>
