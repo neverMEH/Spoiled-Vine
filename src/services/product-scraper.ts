@@ -129,10 +129,53 @@ export class ProductScraperService {
           lastUpdated: new Date().toISOString()
         };
         
+        // Process specifications and dimensions
+        const specifications: Record<string, string> = {};
+        const dimensions: Record<string, string> = {};
+        
+        // Process attributes and specifications
+        if (product.attributes) {
+          product.attributes.forEach(({ key, value }) => {
+            specifications[key] = value;
+            
+            // Extract dimensions
+            if (key === 'Product Dimensions' || key === 'Item Weight') {
+              dimensions[key] = value;
+            }
+          });
+        }
+
+        // Process best sellers rank
+        const bestSellersRank = product.bestsellerRanks?.map(rank => ({
+          category: rank.category,
+          rank: parseInt(rank.rank.toString()),
+          url: rank.url
+        })) || [];
+
+        // Process variations
+        const variations = product.variantDetails?.map(variant => ({
+          name: variant.name,
+          asin: variant.asin,
+          price: variant.price,
+          images: variant.images || [],
+          thumbnail: variant.thumbnail
+        })) || [];
+
         // Ensure thumbnailImage is the first image if available
         const images = product.thumbnailImage 
           ? [product.thumbnailImage, ...(product.images || []).filter(img => img !== product.thumbnailImage)]
           : product.images;
+
+        // Process A+ content
+        const aPlusContent = product.aPlusContent ? {
+          title: product.aPlusContent.title,
+          description: product.aPlusContent.rawText,
+          images: product.aPlusContent.rawImages?.map(img => ({
+            name: img.name,
+            url: img.url
+          })) || [],
+          modules: product.aPlusContent.modules || []
+        } : null;
 
         const { error } = await supabase.from('products').upsert({
           asin: product.asin,
@@ -140,19 +183,32 @@ export class ProductScraperService {
           brand: product.brand,
           price: typeof product.price === 'object' ? product.price.value : product.price,
           currency: product.currency,
-          images: images,
+          images,
           categories: product.categories,
           features: product.features,
           description: product.description,
+          availability: product.inStockText || product.inStock ? 'In Stock' : 'Out of Stock',
+          specifications,
+          dimensions,
+          best_sellers_rank: bestSellersRank,
+          variations,
+          attributes: product.attributes || [],
+          product_overview: product.productOverview || [],
+          a_plus_content: aPlusContent,
+          ai_reviews_summary: product.aiReviewsSummary ? {
+            text: product.aiReviewsSummary.text,
+            keywords: product.aiReviewsSummary.keywords || []
+          } : null,
+          last_scraped: new Date(),
           reviews: product.reviews || [],
           review_data: {
             totalReviews: product.reviewsCount || 0,
             scrapedReviews: product.reviews?.length || 0,
-            lastScraped: new Date().toISOString()
+            lastScraped: new Date()
           },
           review_summary: reviewSummary,
           status: 'active',
-          updated_at: new Date().toISOString(),
+          updated_at: new Date(),
         }, {
           onConflict: 'asin',
           ignoreDuplicates: false

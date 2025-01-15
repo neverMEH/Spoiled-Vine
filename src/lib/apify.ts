@@ -16,6 +16,35 @@ interface ApifyProduct {
   price: number;
   currency: string;
   brand: string;
+  availability: string;
+  dimensions?: {
+    width?: string;
+    height?: string;
+    length?: string;
+    weight?: string;
+  };
+  specifications?: Record<string, string>;
+  bestSellersRank?: Array<{
+    category: string;
+    rank: number;
+  }>;
+  variations?: Array<{
+    title: string;
+    asin: string;
+    price?: number;
+    available?: boolean;
+  }>;
+  frequentlyBoughtTogether?: Array<{
+    asin: string;
+    title: string;
+    price?: number;
+  }>;
+  customerQuestions?: Array<{
+    question: string;
+    answer: string;
+    votes: number;
+    date: string;
+  }>;
   rating: number;
   reviewsCount: number;
   starsBreakdown?: {
@@ -122,9 +151,13 @@ class ApifyService {
       asins: uniqueAsins,
       amazonDomain: "amazon.com",
       maxReviews: 100,
+      maxAnswers: 20,
       scrapeReviews: true,
       scrapeDescription: true,
       scrapeFilters: true,
+      scrapeSpecifications: true,
+      scrapeBuyingOptions: true,
+      scrapeQuestions: true,
       scrapeVariants: false,
       proxyConfiguration: {
         useApifyProxy: true,

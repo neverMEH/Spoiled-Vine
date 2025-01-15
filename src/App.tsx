@@ -11,6 +11,7 @@ import { SignupPage } from '@/pages/signup';
 import { VerifyEmailPage } from '@/pages/verify-email';
 import { GatherPage } from '@/pages/reviews/gather';
 import { ListPage } from '@/pages/reviews/list';
+import { DetailsPage } from '@/pages/reviews/details';
 import { RequestResetPage } from '@/pages/request-reset';
 import { ResetPasswordPage } from '@/pages/reset-password';
 import { ProfilePage } from '@/pages/profile';
@@ -103,6 +104,16 @@ function App() {
           <ProtectedRoute>
             <DashboardLayout>
               <ListPage />
+            </DashboardLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/reviews/:id"
+        element={
+          <ProtectedRoute>
+            <DashboardLayout>
+              <DetailsPage />
             </DashboardLayout>
           </ProtectedRoute>
         }

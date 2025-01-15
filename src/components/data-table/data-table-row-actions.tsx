@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import { Row } from "@tanstack/react-table";
 import { MoreHorizontal, Pen, Trash, RefreshCw } from "lucide-react";
 import { useState } from "react";
@@ -23,6 +24,7 @@ interface DataTableRowActionsProps {
 export function DataTableRowActions({ row, onRefresh }: DataTableRowActionsProps) {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const handleRefresh = async () => {
     try {
@@ -58,7 +60,7 @@ export function DataTableRowActions({ row, onRefresh }: DataTableRowActionsProps
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-[160px]">
-        <DropdownMenuItem>
+        <DropdownMenuItem onClick={() => navigate(`/reviews/${row.original.id}`)}>
           <Pen className="mr-2 h-4 w-4" />
           View Details
         </DropdownMenuItem>
