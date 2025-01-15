@@ -6,6 +6,10 @@ import { H1, Lead } from '@/components/typography';
 import { Button } from '@/components/ui/button';
 import { Wine } from 'lucide-react';
 import { LoginPage } from '@/pages/login';
+import { SignupPage } from '@/pages/signup';
+import { VerifyEmailPage } from '@/pages/verify-email';
+import { RequestResetPage } from '@/pages/request-reset';
+import { ResetPasswordPage } from '@/pages/reset-password';
 
 function App() {
   const navigate = useNavigate();
@@ -41,6 +45,10 @@ function App() {
         }
       />
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/signup" element={<SignupPage />} />
+      <Route path="/verify-email" element={<VerifyEmailPage />} />
+      <Route path="/request-reset" element={<RequestResetPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
     </Routes>
   );
 }

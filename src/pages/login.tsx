@@ -87,6 +87,12 @@ export function LoginPage() {
                   </div>
                 )}
 
+                {location.state?.message && (
+                  <div className="p-3 text-sm text-green-600 bg-green-50 dark:bg-green-950/50 dark:text-green-400 rounded-md">
+                    {location.state.message}
+                  </div>
+                )}
+
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
                   <Input
@@ -124,7 +130,10 @@ export function LoginPage() {
                   <Button
                     variant="link"
                     className="px-0 font-normal"
-                    onClick={() => navigate('/forgot-password')}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      navigate('/request-reset');
+                    }}
                   >
                     Forgot password?
                   </Button>
