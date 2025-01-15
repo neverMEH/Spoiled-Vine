@@ -3,11 +3,13 @@ import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { Container } from '@/components/layout/container';
 import { Section } from '@/components/layout/section';
 import { H1, Lead } from '@/components/typography';
+import { DashboardLayout } from '@/components/layout/dashboard-layout';
 import { Button } from '@/components/ui/button';
 import { Wine } from 'lucide-react';
 import { LoginPage } from '@/pages/login';
 import { SignupPage } from '@/pages/signup';
 import { VerifyEmailPage } from '@/pages/verify-email';
+import { GatherPage } from '@/pages/reviews/gather';
 import { RequestResetPage } from '@/pages/request-reset';
 import { ResetPasswordPage } from '@/pages/reset-password';
 import { ProfilePage } from '@/pages/profile';
@@ -68,7 +70,9 @@ function App() {
         path="/dashboard"
         element={
           <ProtectedRoute>
-            <DashboardPage />
+            <DashboardLayout>
+              <DashboardPage />
+            </DashboardLayout>
           </ProtectedRoute>
         }
       />
@@ -76,7 +80,19 @@ function App() {
         path="/profile"
         element={
           <ProtectedRoute>
-            <ProfilePage />
+            <DashboardLayout>
+              <ProfilePage />
+            </DashboardLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/reviews/gather"
+        element={
+          <ProtectedRoute>
+            <DashboardLayout>
+              <GatherPage />
+            </DashboardLayout>
           </ProtectedRoute>
         }
       />

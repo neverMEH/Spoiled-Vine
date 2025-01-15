@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { Container } from '@/components/layout/container';
 import { Section } from '@/components/layout/section';
 import { Button } from '@/components/ui/button';
+import { AsinInput } from '@/components/forms/asin-input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Search, Settings, LogOut, HelpCircle } from 'lucide-react';
@@ -11,6 +12,7 @@ import { Search, Settings, LogOut, HelpCircle } from 'lucide-react';
 export function DashboardPage() {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const handleSignOut = async () => {
     try {
@@ -21,46 +23,31 @@ export function DashboardPage() {
     }
   };
 
+  const handleAsinSubmit = async (asins: string[]) => {
+    try {
+      setIsProcessing(true);
+      // TODO: Implement ASIN processing logic
+      console.log('Processing ASINs:', asins);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <div className="border-b">
-        <Container>
-          <div className="flex h-16 items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <h1 className="text-xl font-semibold">Welcome to Spoiled Vine</h1>
-            </div>
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-muted-foreground">
-                {user?.email}
-              </span>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => navigate('/profile')}
-              >
-                <Settings className="h-5 w-5" />
-              </Button>
-              <Button variant="ghost" size="icon" onClick={handleSignOut}>
-                <LogOut className="h-5 w-5" />
-              </Button>
-            </div>
-          </div>
-        </Container>
-      </div>
-
       <Container>
         <Section>
           <div className="space-y-6">
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+              <p className="text-muted-foreground">
+                Welcome to your Spoiled Vine dashboard
+              </p>
+            </div>
+
             <p className="text-muted-foreground">
               Your comprehensive platform for Amazon review analysis
             </p>
-
-            <div className="flex justify-center">
-              <Button className="px-8" onClick={() => navigate('/reviews/gather')}>
-                Get Started →
-              </Button>
-            </div>
 
             <div className="grid gap-6 md:grid-cols-3">
               {/* Review Gathering */}
