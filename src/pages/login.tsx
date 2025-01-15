@@ -51,7 +51,7 @@ export function LoginPage() {
       setIsLoading(true);
       setError(null);
       await signIn(data.email, data.password);
-      const from = location.state?.from?.pathname || '/';
+      const from = location.state?.from?.pathname || '/dashboard';
       navigate(from);
     } catch (err) {
       setError('Invalid email or password');

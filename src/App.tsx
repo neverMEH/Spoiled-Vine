@@ -10,6 +10,9 @@ import { SignupPage } from '@/pages/signup';
 import { VerifyEmailPage } from '@/pages/verify-email';
 import { RequestResetPage } from '@/pages/request-reset';
 import { ResetPasswordPage } from '@/pages/reset-password';
+import { ProfilePage } from '@/pages/profile';
+import { DashboardPage } from '@/pages/dashboard';
+import { ProtectedRoute } from '@/components/auth/protected-route';
 
 function App() {
   const navigate = useNavigate();
@@ -49,6 +52,22 @@ function App() {
       <Route path="/verify-email" element={<VerifyEmailPage />} />
       <Route path="/request-reset" element={<RequestResetPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
+      <Route
+        path="/dashboard"
+        element={
+          <ProtectedRoute>
+            <DashboardPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/profile"
+        element={
+          <ProtectedRoute>
+            <ProfilePage />
+          </ProtectedRoute>
+        }
+      />
     </Routes>
   );
 }

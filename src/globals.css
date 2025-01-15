@@ -25,28 +25,6 @@
     --ring: 271 91% 58%;
     --radius: 0.5rem;
   }
-
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 271 91% 58%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 271 91% 58%;
-  }
 }
 
 @layer base {
@@ -55,11 +33,29 @@
   }
   body {
     @apply bg-background text-foreground;
+    min-width: 1024px;
+    overflow-x: auto;
   }
 }
 
 @layer utilities {
   .text-balance {
     text-wrap: balance;
+  }
+}
+
+/* Force desktop layout */
+@media (max-width: 1023px) {
+  html {
+    min-width: 1024px;
+  }
+  
+  body {
+    min-width: 1024px;
+    width: 1024px;
+  }
+  
+  #root {
+    min-width: 1024px;
   }
 }

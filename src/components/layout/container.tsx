@@ -22,7 +22,12 @@ export function Container({
 }: ContainerProps) {
   return (
     <div
-      className={cn('mx-auto w-full px-4 md:px-6', sizes[size], className)}
+      className={cn(
+        'mx-auto w-full px-6',
+        'min-w-[1024px]',
+        sizes[size],
+        className
+      )}
       {...props}
     >
       {children}
