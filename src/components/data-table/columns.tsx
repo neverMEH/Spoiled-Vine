@@ -62,7 +62,7 @@ export const columns: ColumnDef<Product>[] = [
       <DataTableColumnHeader column={column} title="Product Title" />
     ),
     cell: ({ row }) => (
-      <div className="max-w-[500px] truncate">{row.getValue("title")}</div>
+      <div className="max-w-[calc(35vw)] truncate">{row.getValue("title")}</div>
     ),
   },
   {

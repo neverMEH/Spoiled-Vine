@@ -80,15 +80,15 @@
 /* Force desktop layout */
 @media (max-width: 1023px) {
   html {
-    min-width: 1024px;
+    min-width: 90vw;
   }
   
   body {
-    min-width: 1024px;
-    width: 1024px;
+    min-width: 90vw;
+    width: 100%;
   }
   
   #root {
-    min-width: 1024px;
+    min-width: 90vw;
   }
 }
