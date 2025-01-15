@@ -1,5 +1,5 @@
-import React from 'react';
-import { Routes, Route, useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { Container } from '@/components/layout/container';
 import { Section } from '@/components/layout/section';
 import { H1, Lead } from '@/components/typography';
@@ -13,10 +13,20 @@ import { ResetPasswordPage } from '@/pages/reset-password';
 import { ProfilePage } from '@/pages/profile';
 import { DashboardPage } from '@/pages/dashboard';
 import { ProtectedRoute } from '@/components/auth/protected-route';
+import { useAuth } from '@/hooks/use-auth';
 
 function App() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { isAuthenticated } = useAuth();
   
+  // Redirect authenticated users to dashboard when accessing root
+  useEffect(() => {
+    if (isAuthenticated && location.pathname === '/') {
+      navigate('/dashboard');
+    }
+  }, [isAuthenticated, location.pathname, navigate]);
+
   return (
     <Routes>
       <Route
@@ -36,7 +46,9 @@ function App() {
                     and share your tasting experiences.
                   </Lead>
                   <div className="flex gap-4 mt-8">
-                    <Button size="lg" onClick={() => navigate('/login')}>Get Started</Button>
+                    <Button size="lg" onClick={() => navigate('/login')}>
+                      Get Started
+                    </Button>
                     <Button size="lg" variant="outline">
                       Learn More
                     </Button>
