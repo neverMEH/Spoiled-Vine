@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/use-auth';
+import { refreshWorker } from '@/services/refresh-worker';
 import { Container } from '@/components/layout/container';
 import { Section } from '@/components/layout/section';
 import { Button } from '@/components/ui/button';
@@ -12,6 +13,16 @@ import { Search, Settings, LogOut, HelpCircle } from 'lucide-react';
 export function DashboardPage() {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
+  
+  useEffect(() => {
+    // Start the refresh worker when the dashboard loads
+    refreshWorker.start();
+    
+    // Clean up when component unmounts
+    return () => {
+      refreshWorker.stop();
+    };
+  }, []);
   const [isProcessing, setIsProcessing] = useState(false);
 
   const handleSignOut = async () => {

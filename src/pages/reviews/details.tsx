@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LoadingSpinner } from '@/components/feedback/loading-spinner';
+import { TrendChart } from '@/components/charts/trend-chart';
 import { ArrowLeft, Star, Package, DollarSign, Calendar, RefreshCw, ChevronsUpDown } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
@@ -88,10 +89,22 @@ export function DetailsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [product, setProduct] = useState<ProductDetails | null>(null);
+  const [historicalData, setHistoricalData] = useState<{
+    prices: Array<{ date: string; value: number }>;
+    ratings: Array<{ date: string; value: number }>;
+    reviews: Array<{ date: string; value: number }>;
+    ranks: Array<{ date: string; value: number }>;
+  }>({
+    prices: [],
+    ratings: [],
+    reviews: [],
+    ranks: []
+  });
 
   useEffect(() => {
     if (id) {
       fetchProduct(id);
+      fetchHistoricalData(id);
     }
   }, [id]);
 
@@ -117,6 +130,57 @@ export function DetailsPage() {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchHistoricalData = async (productId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('product_history')
+        .select('*')
+        .eq('product_id', productId)
+        .order('captured_at', { ascending: true });
+
+      if (error) throw error;
+
+      const prices: Array<{ date: string; value: number }> = [];
+      const ratings: Array<{ date: string; value: number }> = [];
+      const reviews: Array<{ date: string; value: number }> = [];
+      const ranks: Array<{ date: string; value: number }> = [];
+
+      data.forEach(record => {
+        const date = record.captured_at;
+        
+        if (record.price) {
+          prices.push({ date, value: record.price });
+        }
+        
+        if (record.rating) {
+          ratings.push({ date, value: record.rating });
+        }
+        
+        if (record.review_count) {
+          reviews.push({ date, value: record.review_count });
+        }
+        
+        if (record.best_sellers_rank?.[0]?.rank) {
+          ranks.push({ date, value: record.best_sellers_rank[0].rank });
+        }
+      });
+
+      setHistoricalData({
+        prices,
+        ratings,
+        reviews,
+        ranks
+      });
+    } catch (error) {
+      console.error('Error fetching historical data:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch historical data',
+        variant: 'destructive'
+      });
     }
   };
 
@@ -179,7 +243,6 @@ export function DetailsPage() {
                   >
                     <ArrowLeft className="h-4 w-4" />
                   </Button>
-                </div>
                   <Package className="h-4 w-4" />
                   <span>{product.brand}</span>
                   <span>•</span>
@@ -188,6 +251,7 @@ export function DetailsPage() {
                   <Badge variant={product.availability?.toLowerCase().includes('in stock') ? 'success' : 'secondary'}>
                     {product.availability || 'Unknown Status'}
                   </Badge>
+                </div>
               </div>
               <Button
                 variant="outline"
@@ -260,7 +324,6 @@ export function DetailsPage() {
                       ))}
                     </div>
                   )}
-
 
                   {/* Categories */}
                   {product.categories && product.categories.length > 0 && (
@@ -361,6 +424,30 @@ export function DetailsPage() {
                 </CardContent>
               </Card>
 
+              {/* Trend Charts */}
+              <div className="grid grid-cols-2 gap-6">
+                <TrendChart
+                  title="Price History"
+                  data={historicalData.prices}
+                  valueFormatter={(value) => formatCurrency(value)}
+                />
+                <TrendChart
+                  title="Rating Trend"
+                  data={historicalData.ratings}
+                  valueFormatter={(value) => value.toFixed(1)}
+                />
+                <TrendChart
+                  title="Best Sellers Rank"
+                  data={historicalData.ranks}
+                  valueFormatter={(value) => `#${value.toLocaleString()}`}
+                />
+                <TrendChart
+                  title="Total Reviews"
+                  data={historicalData.reviews}
+                  valueFormatter={(value) => value.toLocaleString()}
+                />
+              </div>
+
               {/* Review Stats and Summary */}
               <div className="grid grid-cols-3 gap-6">
                 <Card className="col-span-2">
@@ -437,7 +524,6 @@ export function DetailsPage() {
                   </CardContent>
                 </Card>
               </div>
-            </div>
 
               {/* Customer Questions */}
               {product.customer_questions && product.customer_questions.length > 0 && (
@@ -474,91 +560,92 @@ export function DetailsPage() {
                 </Card>
               )}
 
-            {/* Reviews Section */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Customer Reviews</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Tabs defaultValue="recent" className="space-y-4">
-                  <TabsList>
-                    <TabsTrigger value="recent">Most Recent</TabsTrigger>
-                    <TabsTrigger value="helpful">Most Helpful</TabsTrigger>
-                    <TabsTrigger value="critical">Critical Reviews</TabsTrigger>
-                  </TabsList>
+              {/* Reviews Section */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Customer Reviews</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Tabs defaultValue="recent" className="space-y-4">
+                    <TabsList>
+                      <TabsTrigger value="recent">Most Recent</TabsTrigger>
+                      <TabsTrigger value="helpful">Most Helpful</TabsTrigger>
+                      <TabsTrigger value="critical">Critical Reviews</TabsTrigger>
+                    </TabsList>
 
-                  <TabsContent value="recent" className="space-y-4">
-                    {product.reviews?.length ? (
-                      product.reviews.map((review, index) => (
-                        <div
-                          key={review.id || index}
-                          className="border-b last:border-0 pb-6 last:pb-0 pt-6 first:pt-0 space-y-3"
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <div className="flex">
-                                {Array.from({ length: 5 }).map((_, i) => (
-                                  <Star
-                                    key={i}
-                                    className={`h-4 w-4 ${
-                                      i < review.rating
-                                        ? 'fill-primary text-primary'
-                                        : 'fill-muted text-muted'
-                                    }`}
+                    <TabsContent value="recent" className="space-y-4">
+                      {product.reviews?.length ? (
+                        product.reviews.map((review, index) => (
+                          <div
+                            key={review.id || index}
+                            className="border-b last:border-0 pb-6 last:pb-0 pt-6 first:pt-0 space-y-3"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <div className="flex">
+                                  {Array.from({ length: 5 }).map((_, i) => (
+                                    <Star
+                                      key={i}
+                                      className={`h-4 w-4 ${
+                                        i < review.rating
+                                          ? 'fill-primary text-primary'
+                                          : 'fill-muted text-muted'
+                                      }`}
+                                    />
+                                  ))}
+                                </div>
+                                <h4 className="font-medium">{review.title}</h4>
+                              </div>
+                              <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                                <div className="flex items-center gap-1">
+                                  <Calendar className="h-4 w-4" />
+                                  {formatDate(new Date(review.date))}
+                                </div>
+                                {review.verified && (
+                                  <Badge variant="success">Verified Purchase</Badge>
+                                )}
+                              </div>
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              By {review.author}
+                            </p>
+                            <p className="text-sm">{review.text}</p>
+                            {review.images && review.images.length > 0 && (
+                              <div className="grid grid-cols-6 gap-2 mt-3">
+                                {review.images.map((image, imageIndex) => (
+                                  <img
+                                    key={imageIndex}
+                                    src={image}
+                                    alt={`Review image ${imageIndex + 1}`}
+                                    className="aspect-square w-full object-cover rounded-md border hover:border-primary transition-colors cursor-zoom-in"
                                   />
                                 ))}
                               </div>
-                              <h4 className="font-medium">{review.title}</h4>
-                            </div>
-                            <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                              <div className="flex items-center gap-1">
-                                <Calendar className="h-4 w-4" />
-                                {formatDate(new Date(review.date))}
-                              </div>
-                              {review.verified && (
-                                <Badge variant="success">Verified Purchase</Badge>
-                              )}
-                            </div>
+                            )}
                           </div>
-                          <p className="text-sm text-muted-foreground">
-                            By {review.author}
-                          </p>
-                          <p className="text-sm">{review.text}</p>
-                          {review.images && review.images.length > 0 && (
-                            <div className="grid grid-cols-6 gap-2 mt-3">
-                              {review.images.map((image, imageIndex) => (
-                                <img
-                                  key={imageIndex}
-                                  src={image}
-                                  alt={`Review image ${imageIndex + 1}`}
-                                  className="aspect-square w-full object-cover rounded-md border hover:border-primary transition-colors cursor-zoom-in"
-                                />
-                              ))}
-                            </div>
-                          )}
+                        ))
+                      ) : (
+                        <div className="text-center py-8 text-muted-foreground">
+                          No reviews available
                         </div>
-                      ))
-                    ) : (
+                      )}
+                    </TabsContent>
+
+                    <TabsContent value="helpful">
                       <div className="text-center py-8 text-muted-foreground">
-                        No reviews available
+                        Coming soon
                       </div>
-                    )}
-                  </TabsContent>
+                    </TabsContent>
 
-                  <TabsContent value="helpful">
-                    <div className="text-center py-8 text-muted-foreground">
-                      Coming soon
-                    </div>
-                  </TabsContent>
-
-                  <TabsContent value="critical">
-                    <div className="text-center py-8 text-muted-foreground">
-                      Coming soon
-                    </div>
-                  </TabsContent>
-                </Tabs>
-              </CardContent>
-            </Card>
+                    <TabsContent value="critical">
+                      <div className="text-center py-8 text-muted-foreground">
+                        Coming soon
+                      </div>
+                    </TabsContent>
+                  </Tabs>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </Section>
       </Container>
