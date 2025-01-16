@@ -1,5 +1,7 @@
 import { apifyService } from '@/lib/apify';
+import { apifyReviewService } from '@/lib/apify-reviews';
 import { supabase } from '@/lib/supabase';
+import { reviewScraperService } from './review-scraper';
 
 interface ScrapingTask {
   id: string;
@@ -91,139 +93,88 @@ export class ProductScraperService {
 
       // Store results in Supabase
       for (const product of results) {
-        if (!product.asin) {
-          console.warn('Skipping product without ASIN:', product);
-          continue;
-        }
+        try {
+          if (!product.asin) {
+            console.warn('Skipping product without ASIN:', product);
+            continue;
+          }
 
-        // Prepare review summary
-        // Calculate average rating from stars breakdown
-        let averageRating = 0;
-        if (product.starsBreakdown) {
-          averageRating = (
-            (product.starsBreakdown['5star'] || 0) * 5 +
-            (product.starsBreakdown['4star'] || 0) * 4 +
-            (product.starsBreakdown['3star'] || 0) * 3 +
-            (product.starsBreakdown['2star'] || 0) * 2 +
-            (product.starsBreakdown['1star'] || 0) * 1
-          );
-        }
+          // Get existing product first
+          const { data: existingProduct } = await supabase
+            .from('products')
+            .select('id')
+            .eq('asin', product.asin)
+            .single();
 
-        const reviewSummary = {
-          rating: averageRating,
-          reviewCount: product.reviewsCount,
-          starsBreakdown: product.starsBreakdown ? {
-            '5star': product.starsBreakdown['5star'] || 0,
-            '4star': product.starsBreakdown['4star'] || 0,
-            '3star': product.starsBreakdown['3star'] || 0,
-            '2star': product.starsBreakdown['2star'] || 0,
-            '1star': product.starsBreakdown['1star'] || 0
-          } : {
-            '5star': 0,
-            '4star': 0,
-            '3star': 0,
-            '2star': 0,
-            '1star': 0
-          },
-          verifiedPurchases: product.reviews?.filter(r => r.verified).length || 0,
-          lastUpdated: new Date().toISOString()
-        };
-        
-        // Process specifications and dimensions
-        const specifications: Record<string, string> = {};
-        const dimensions: Record<string, string> = {};
-        
-        // Process attributes and specifications
-        if (product.attributes) {
-          product.attributes.forEach(({ key, value }) => {
-            specifications[key] = value;
-            
-            // Extract dimensions
-            if (key === 'Product Dimensions' || key === 'Item Weight') {
-              dimensions[key] = value;
-            }
-          });
-        }
+          // Prepare review summary
+          const reviewSummary = {
+            rating: product.rating || 0,
+            reviewCount: product.reviewsCount || 0,
+            starsBreakdown: product.starsBreakdown || {
+              '5star': 0,
+              '4star': 0,
+              '3star': 0,
+              '2star': 0,
+              '1star': 0
+            },
+            verifiedPurchases: 0,
+            lastUpdated: new Date().toISOString()
+          };
 
-        // Process best sellers rank
-        const bestSellersRank = product.bestsellerRanks?.map(rank => ({
-          category: rank.category,
-          rank: parseInt(rank.rank.toString()),
-          url: rank.url
-        })) || [];
+          const productData = {
+            asin: product.asin,
+            title: product.title,
+            brand: product.brand,
+            price: typeof product.price === 'object' ? product.price.value : product.price,
+            currency: product.currency,
+            availability: product.availability,
+            dimensions: product.dimensions,
+            specifications: product.specifications,
+            best_sellers_rank: product.bestSellersRank,
+            variations: product.variations,
+            frequently_bought_together: product.frequentlyBoughtTogether,
+            customer_questions: product.customerQuestions,
+            images: product.images,
+            categories: product.categories,
+            features: product.features,
+            description: product.description,
+            review_summary: reviewSummary,
+            status: 'active',
+            updated_at: new Date().toISOString()
+          };
 
-        // Process variations
-        const variations = product.variantDetails?.map(variant => ({
-          name: variant.name,
-          asin: variant.asin,
-          price: variant.price,
-          images: variant.images || [],
-          thumbnail: variant.thumbnail
-        })) || [];
+          // Update or insert product
+          const { error: updateError } = existingProduct
+            ? await supabase
+                .from('products')
+                .update(productData)
+                .eq('id', existingProduct.id)
+            : await supabase
+                .from('products')
+                .insert(productData);
 
-        // Ensure thumbnailImage is the first image if available
-        const images = product.thumbnailImage 
-          ? [product.thumbnailImage, ...(product.images || []).filter(img => img !== product.thumbnailImage)]
-          : product.images;
+          if (updateError) {
+            throw updateError;
+          }
 
-        // Process A+ content
-        const aPlusContent = product.aPlusContent ? {
-          title: product.aPlusContent.title,
-          description: product.aPlusContent.rawText,
-          images: product.aPlusContent.rawImages?.map(img => ({
-            name: img.name,
-            url: img.url
-          })) || [],
-          modules: product.aPlusContent.modules || []
-        } : null;
-
-        const { error } = await supabase.from('products').upsert({
-          asin: product.asin,
-          title: product.title,
-          brand: product.brand,
-          price: typeof product.price === 'object' ? product.price.value : product.price,
-          currency: product.currency,
-          images,
-          categories: product.categories,
-          features: product.features,
-          description: product.description,
-          availability: product.inStockText || product.inStock ? 'In Stock' : 'Out of Stock',
-          specifications,
-          dimensions,
-          best_sellers_rank: bestSellersRank,
-          variations,
-          attributes: product.attributes || [],
-          product_overview: product.productOverview || [],
-          a_plus_content: aPlusContent,
-          ai_reviews_summary: product.aiReviewsSummary ? {
-            text: product.aiReviewsSummary.text,
-            keywords: product.aiReviewsSummary.keywords || []
-          } : null,
-          last_scraped: new Date(),
-          reviews: product.reviews || [],
-          review_data: {
-            totalReviews: product.reviewsCount || 0,
-            scrapedReviews: product.reviews?.length || 0,
-            lastScraped: new Date()
-          },
-          review_summary: reviewSummary,
-          status: 'active',
-          updated_at: new Date(),
-        }, {
-          onConflict: 'asin',
-          ignoreDuplicates: false
-        });
-
-        if (error) {
-          console.error(`Error storing product ${product.asin}:`, error);
+          // Start review scraping after product is updated
+          try {
+            await reviewScraperService.startScraping(product.asin);
+            console.log(`Started review scraping for ASIN: ${product.asin}`);
+          } catch (reviewError) {
+            console.error(`Failed to start review scraping for ASIN ${product.asin}:`, reviewError);
+          }
+        } catch (error) {
+          console.error(`Failed to process product ${product.asin}:`, error);
           throw error;
         }
       }
 
-      // Update task status
+      // Mark task as completed
       const task = this.tasks.get(taskId);
       if (task) {
         task.completedAt = new Date().toISOString();
+        task.status = 'completed';
         this.tasks.set(taskId, task);
       }
     } catch (error) {
@@ -234,6 +185,7 @@ export class ProductScraperService {
         task.error = error instanceof Error ? error.message : 'Unknown error';
         this.tasks.set(taskId, task);
       }
+      throw error;
     }
   }
 }

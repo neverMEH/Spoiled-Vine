@@ -1,6 +1,6 @@
 import { config } from './config';
 
-interface ApifyTask {
+interface ApifyReviewTask {
   id: string;
   status: 'READY' | 'RUNNING' | 'SUCCEEDED' | 'FAILED';
   startedAt?: string;
@@ -10,68 +10,26 @@ interface ApifyTask {
   };
 }
 
-interface ApifyProduct {
+interface ApifyReview {
+  id: string;
   title: string;
-  asin: string;
-  price: number;
-  currency: string;
-  brand: string;
-  availability: string;
-  dimensions?: {
-    width?: string;
-    height?: string;
-    length?: string;
-    weight?: string;
-  };
-  specifications?: Record<string, string>;
-  bestSellersRank?: Array<{
-    category: string;
-    rank: number;
-  }>;
-  variations?: Array<{
-    title: string;
-    asin: string;
-    price?: number;
-    available?: boolean;
-  }>;
-  frequentlyBoughtTogether?: Array<{
-    asin: string;
-    title: string;
-    price?: number;
-  }>;
-  customerQuestions?: Array<{
-    question: string;
-    answer: string;
-    votes: number;
-    date: string;
-  }>;
+  text: string;
   rating: number;
-  reviewsCount: number;
-  starsBreakdown?: {
-    '5star': number;
-    '4star': number;
-    '3star': number;
-    '2star': number;
-    '1star': number;
+  date: string;
+  verified: boolean;
+  author: string;
+  images?: string[];
+  helpful: {
+    votes: number;
+    total: number;
   };
-  thumbnailImage?: string;
-  images: string[];
-  categories: string[];
-  features: string[];
-  description: string;
-  reviews?: {
-    id: string;
-    title: string;
-    text: string;
-    rating: number;
-    date: string;
-    verified: boolean;
-    author: string;
-    images?: string[];
-  }[];
+  attributes?: Array<{
+    name: string;
+    value: string;
+  }>;
 }
 
-class ApifyService {
+class ApifyReviewService {
   private readonly baseUrl = 'https://api.apify.com/v2';
   private readonly token: string;
   private readonly actorId = 'ZhSGsaq9MHRnWtStl';
@@ -96,20 +54,33 @@ class ApifyService {
     }
 
     try {
+      // Add CORS mode and credentials
       const response = await fetch(url, {
         ...options,
+        mode: 'cors',
+        credentials: 'same-origin',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
           ...options.headers,
         },
       });
 
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Apify API error:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorText
+        });
         throw new Error(`API request failed: ${response.statusText}`);
       }
 
-      const data = await response.json();
+      // Handle empty responses
+      const text = await response.text();
+      const data = text ? JSON.parse(text) : null;
+
       return data;
     } catch (error) {
       console.error('Apify API request failed:', error);
@@ -117,19 +88,9 @@ class ApifyService {
     }
   }
 
-  async startScraping(asins: string[]): Promise<string> {
-    const uniqueAsins = [...new Set(asins)];
-
-    if (uniqueAsins.length === 0) {
-      throw new Error('No ASINs provided');
-    }
-
-    if (uniqueAsins.length > 100) {
-      throw new Error('Maximum of 100 ASINs allowed per batch');
-    }
-
+  async startScraping(asin: string): Promise<string> {
     const input = {
-      asins: uniqueAsins,
+      asins: [asin],
       amazonDomain: "amazon.com",
       maxReviews: 100,
       maxAnswers: 20,
@@ -140,9 +101,9 @@ class ApifyService {
       scrapeBuyingOptions: true,
       scrapeQuestions: true,
       scrapeVariants: false,
-      proxyConfiguration: {
-        useApifyProxy: true,
-        countryCode: "US"
+      "proxyConfiguration": {
+        "useApifyProxy": true,
+        "countryCode": "US"
       },
       proxyCountry: "AUTO_SELECT_PROXY_COUNTRY",
       useCaptchaSolver: false
@@ -159,11 +120,11 @@ class ApifyService {
 
       return result.data.id;
     } catch (error) {
-      console.error('Failed to start scraping task:', error);
+      console.error('Failed to start review scraping task:', error);
       if (error instanceof Error) {
-        throw new Error(`Failed to start scraping task: ${error.message}`);
+        throw new Error(`Failed to start review scraping task: ${error.message}`);
       }
-      throw new Error('Failed to start scraping task');
+      throw new Error('Failed to start review scraping task');
     }
   }
 
@@ -173,7 +134,7 @@ class ApifyService {
     error?: string;
   }> {
     try {
-      const result = await this.request<{ data: ApifyTask }>(
+      const result = await this.request<{ data: ApifyReviewTask }>(
         `/acts/${this.actorId}/runs/${taskId}`
       );
 
@@ -182,23 +143,23 @@ class ApifyService {
         progress: result.data.progress?.percent || 0,
       };
     } catch (error) {
-      console.error('Failed to get task status:', error);
-      throw new Error('Failed to get task status');
+      console.error('Failed to get review task status:', error);
+      throw new Error('Failed to get review task status');
     }
   }
 
-  async getResults(taskId: string): Promise<ApifyProduct[]> {
+  async getResults(taskId: string): Promise<ApifyReview[]> {
     try {
-      const result = await this.request<ApifyProduct[]>(
+      const result = await this.request<ApifyReview[]>(
         `/actor-runs/${taskId}/dataset/items`
       );
 
       return result;
     } catch (error) {
-      console.error('Failed to get scraping results:', error);
-      throw new Error('Failed to get scraping results');
+      console.error('Failed to get review results:', error);
+      throw new Error('Failed to get review results');
     }
   }
 }
 
-export const apifyService = new ApifyService();
+export const apifyReviewService = new ApifyReviewService();
