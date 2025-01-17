@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useState, useEffect } from "react";
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -25,6 +26,7 @@ import {
 
 import { DataTablePagination } from "./data-table-pagination";
 import { DataTableToolbar } from "./data-table-toolbar";
+import { supabase } from '@/lib/supabase';
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];

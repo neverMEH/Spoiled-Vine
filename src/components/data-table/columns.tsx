@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DataTableColumnHeader } from "./data-table-column-header";
 import { DataTableRowActions } from "./data-table-row-actions";
-import { formatDate } from "@/lib/utils";
+import { formatDate, cn } from "@/lib/utils";
 import { Star } from "lucide-react";
 
 export type Product = {
@@ -117,18 +117,51 @@ export const columns: ColumnDef<Product>[] = [
       <DataTableColumnHeader column={column} title="Status" />
     ),
     cell: ({ row }) => {
-      const status = row.getValue("status") as string;
+      // Get status directly from row value
+      const status = row.getValue("status") as string || 'pending';
+      
+      const getVariant = (status: string) => {
+        switch (status) {
+          case 'active':
+            return 'success';
+          case 'refreshing':
+          case 'pending':
+          case 'queued':
+            return 'warning';
+          case 'error':
+          case 'failed':
+            return 'destructive';
+          default:
+            return 'secondary';
+        }
+      };
+
+      const getLabel = (status: string) => {
+        switch (status) {
+          case 'active':
+            return 'Active';
+          case 'refreshing':
+            return 'Refreshing';
+          case 'pending':
+            return 'Pending';
+          case 'queued':
+            return 'Queued';
+          case 'error':
+          case 'failed':
+            return 'Error';
+          default:
+            return status;
+        }
+      };
+
       return (
         <Badge
-          variant={
-            status === "active"
-              ? "success"
-              : status === "pending"
-              ? "warning"
-              : "destructive"
-          }
+          variant={getVariant(status)}
+          className={cn(
+            status === 'refreshing' && "animate-pulse"
+          )}
         >
-          {status}
+          {getLabel(status)}
         </Badge>
       );
     },
