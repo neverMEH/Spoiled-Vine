@@ -574,10 +574,10 @@ export function DetailsPage() {
                     </TabsList>
 
                     <TabsContent value="recent" className="space-y-4">
-                      {product.reviews?.length ? (
-                        product.reviews.map((review, index) => (
+                      {Array.isArray(product.reviews) && product.reviews.length > 0 ? (
+                        product.reviews.map((review: any) => (
                           <div
-                            key={review.id || index}
+                            key={review.review_id || review.id}
                             className="border-b last:border-0 pb-6 last:pb-0 pt-6 first:pt-0 space-y-3"
                           >
                             <div className="flex items-center justify-between">
@@ -587,29 +587,29 @@ export function DetailsPage() {
                                     <Star
                                       key={i}
                                       className={`h-4 w-4 ${
-                                        i < review.rating
+                                        i < (review.rating || 0)
                                           ? 'fill-primary text-primary'
                                           : 'fill-muted text-muted'
                                       }`}
                                     />
                                   ))}
                                 </div>
-                                <h4 className="font-medium">{review.title}</h4>
+                                <h4 className="font-medium">{review.title || 'Review'}</h4>
                               </div>
                               <div className="flex items-center gap-4 text-sm text-muted-foreground">
                                 <div className="flex items-center gap-1">
                                   <Calendar className="h-4 w-4" />
-                                  {formatDate(new Date(review.date))}
+                                  {formatDate(review.review_date || review.date)}
                                 </div>
-                                {review.verified && (
+                                {(review.verified_purchase || review.verified) && (
                                   <Badge variant="success">Verified Purchase</Badge>
                                 )}
                               </div>
                             </div>
                             <p className="text-sm text-muted-foreground">
-                              By {review.author}
+                              By {review.author || 'Anonymous'}
                             </p>
-                            <p className="text-sm">{review.text}</p>
+                            <p className="text-sm">{review.content || review.text}</p>
                             {review.images && review.images.length > 0 && (
                               <div className="grid grid-cols-6 gap-2 mt-3">
                                 {review.images.map((image, imageIndex) => (
@@ -632,14 +632,137 @@ export function DetailsPage() {
                     </TabsContent>
 
                     <TabsContent value="helpful">
-                      <div className="text-center py-8 text-muted-foreground">
-                        Coming soon
+                      <div className="space-y-4">
+                        {Array.isArray(product.reviews) && product.reviews.length > 0 ? (
+                          [...product.reviews]
+                            .sort((a, b) => (b.helpful_votes || 0) - (a.helpful_votes || 0))
+                            .map((review: any) => (
+                              <div
+                                key={review.review_id || review.id}
+                                className="border-b last:border-0 pb-6 last:pb-0 pt-6 first:pt-0 space-y-3"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <div className="flex">
+                                      {Array.from({ length: 5 }).map((_, i) => (
+                                        <Star
+                                          key={i}
+                                          className={`h-4 w-4 ${
+                                            i < (review.rating || 0)
+                                              ? 'fill-primary text-primary'
+                                              : 'fill-muted text-muted'
+                                          }`}
+                                        />
+                                      ))}
+                                    </div>
+                                    <h4 className="font-medium">{review.title || 'Review'}</h4>
+                                  </div>
+                                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                                    <div className="flex items-center gap-1">
+                                      <Calendar className="h-4 w-4" />
+                                      {formatDate(review.review_date || review.date)}
+                                    </div>
+                                    {(review.verified_purchase || review.verified) && (
+                                      <Badge variant="success">Verified Purchase</Badge>
+                                    )}
+                                  </div>
+                                </div>
+                                <p className="text-sm text-muted-foreground">
+                                  By {review.author || 'Anonymous'}
+                                </p>
+                                <p className="text-sm">{review.content || review.text}</p>
+                                {review.helpful_votes > 0 && (
+                                  <p className="text-sm text-muted-foreground">
+                                    {review.helpful_votes} {review.helpful_votes === 1 ? 'person' : 'people'} found this helpful
+                                  </p>
+                                )}
+                                {review.images && review.images.length > 0 && (
+                                  <div className="grid grid-cols-6 gap-2 mt-3">
+                                    {review.images.map((image, imageIndex) => (
+                                      <img
+                                        key={imageIndex}
+                                        src={image}
+                                        alt={`Review image ${imageIndex + 1}`}
+                                        className="aspect-square w-full object-cover rounded-md border hover:border-primary transition-colors cursor-zoom-in"
+                                      />
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            ))
+                        ) : (
+                          <div className="text-center py-8 text-muted-foreground">
+                            No reviews available
+                          </div>
+                        )}
                       </div>
                     </TabsContent>
 
                     <TabsContent value="critical">
-                      <div className="text-center py-8 text-muted-foreground">
-                        Coming soon
+                      <div className="space-y-4">
+                        {Array.isArray(product.reviews) && product.reviews.length > 0 ? (
+                          product.reviews
+                            .filter(review => (review.rating || 0) <= 3)
+                            .sort((a, b) => (a.rating || 0) - (b.rating || 0))
+                            .map((review: any) => (
+                              <div
+                                key={review.review_id || review.id}
+                                className="border-b last:border-0 pb-6 last:pb-0 pt-6 first:pt-0 space-y-3"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <div className="flex">
+                                      {Array.from({ length: 5 }).map((_, i) => (
+                                        <Star
+                                          key={i}
+                                          className={`h-4 w-4 ${
+                                            i < (review.rating || 0)
+                                              ? 'fill-primary text-primary'
+                                              : 'fill-muted text-muted'
+                                          }`}
+                                        />
+                                      ))}
+                                    </div>
+                                    <h4 className="font-medium">{review.title || 'Review'}</h4>
+                                  </div>
+                                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                                    <div className="flex items-center gap-1">
+                                      <Calendar className="h-4 w-4" />
+                                      {formatDate(review.review_date || review.date)}
+                                    </div>
+                                    {(review.verified_purchase || review.verified) && (
+                                      <Badge variant="success">Verified Purchase</Badge>
+                                    )}
+                                  </div>
+                                </div>
+                                <p className="text-sm text-muted-foreground">
+                                  By {review.author || 'Anonymous'}
+                                </p>
+                                <p className="text-sm">{review.content || review.text}</p>
+                                {review.helpful_votes > 0 && (
+                                  <p className="text-sm text-muted-foreground">
+                                    {review.helpful_votes} {review.helpful_votes === 1 ? 'person' : 'people'} found this helpful
+                                  </p>
+                                )}
+                                {review.images && review.images.length > 0 && (
+                                  <div className="grid grid-cols-6 gap-2 mt-3">
+                                    {review.images.map((image, imageIndex) => (
+                                      <img
+                                        key={imageIndex}
+                                        src={image}
+                                        alt={`Review image ${imageIndex + 1}`}
+                                        className="aspect-square w-full object-cover rounded-md border hover:border-primary transition-colors cursor-zoom-in"
+                                      />
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            ))
+                        ) : (
+                          <div className="text-center py-8 text-muted-foreground">
+                            No critical reviews available
+                          </div>
+                        )}
                       </div>
                     </TabsContent>
                   </Tabs>

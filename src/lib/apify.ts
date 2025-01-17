@@ -17,6 +17,8 @@ interface ApifyProduct {
   currency: string;
   brand: string;
   availability: string;
+  rating: number;
+  reviewsCount: number;
   dimensions?: {
     width?: string;
     height?: string;
@@ -45,8 +47,6 @@ interface ApifyProduct {
     votes: number;
     date: string;
   }>;
-  rating: number;
-  reviewsCount: number;
   starsBreakdown?: {
     '5star': number;
     '4star': number;
@@ -131,7 +131,7 @@ class ApifyService {
     const input = {
       asins: uniqueAsins,
       amazonDomain: "amazon.com",
-      maxReviews: 100,
+      maxReviews: 1,
       maxAnswers: 20,
       scrapeReviews: true,
       scrapeDescription: true,

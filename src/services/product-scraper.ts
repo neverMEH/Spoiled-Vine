@@ -1,7 +1,6 @@
 import { apifyService } from '@/lib/apify';
-import { apifyReviewService } from '@/lib/apify-reviews';
-import { supabase } from '@/lib/supabase';
 import { reviewScraperService } from './review-scraper';
+import { supabase } from '@/lib/supabase';
 
 interface ScrapingTask {
   id: string;
@@ -87,22 +86,22 @@ export class ProductScraperService {
   private async processResults(taskId: string) {
     try {
       const results = await apifyService.getResults(taskId);
-      if (!Array.isArray(results)) {
+      if (!Array.isArray(results) || results.length === 0) {
         throw new Error('Invalid results format from Apify');
       }
 
       // Store results in Supabase
       for (const product of results) {
         try {
-          if (!product.asin) {
-            console.warn('Skipping product without ASIN:', product);
+          if (!product?.asin) {
+            console.warn('Skipping invalid product:', product);
             continue;
           }
 
           // Get existing product first
           const { data: existingProduct } = await supabase
             .from('products')
-            .select('id')
+            .select('*')
             .eq('asin', product.asin)
             .single();
 
@@ -117,7 +116,7 @@ export class ProductScraperService {
               '2star': 0,
               '1star': 0
             },
-            verifiedPurchases: 0,
+            verifiedPurchases: 0, // This will be updated by review scraper
             lastUpdated: new Date().toISOString()
           };
 
@@ -143,20 +142,18 @@ export class ProductScraperService {
             updated_at: new Date().toISOString()
           };
 
-          // Update or insert product
-          const { error: updateError } = existingProduct
-            ? await supabase
-                .from('products')
-                .update(productData)
-                .eq('id', existingProduct.id)
-            : await supabase
-                .from('products')
-                .insert(productData);
+          // Insert or update product with upsert
+          const { error: updateError } = await supabase
+            .from('products')
+            .upsert(productData, {
+              onConflict: 'asin',
+              ignoreDuplicates: false
+            });
 
           if (updateError) {
             throw updateError;
           }
-
+          
           // Start review scraping after product is updated
           try {
             await reviewScraperService.startScraping(product.asin);
@@ -164,6 +161,7 @@ export class ProductScraperService {
           } catch (reviewError) {
             console.error(`Failed to start review scraping for ASIN ${product.asin}:`, reviewError);
           }
+
         } catch (error) {
           console.error(`Failed to process product ${product.asin}:`, error);
           throw error;

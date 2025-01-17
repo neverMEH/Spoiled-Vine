@@ -5,12 +5,21 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function formatDate(date: Date) {
+export function formatDate(date: Date | string | null) {
+  if (!date) return 'N/A';
+  
+  const parsedDate = date instanceof Date ? date : new Date(date);
+  
+  // Check if date is valid
+  if (isNaN(parsedDate.getTime())) {
+    return 'N/A';
+  }
+
   return new Intl.DateTimeFormat('en-US', {
     month: 'long',
     day: 'numeric',
     year: 'numeric',
-  }).format(date);
+  }).format(parsedDate);
 }
 
 export function formatCurrency(amount: number) {
