@@ -129,7 +129,6 @@ export class ReviewScraperService {
       };
       // Transform and save reviews
       const reviews = rawReviews.map(review => {
-        // Parse helpful votes from review reaction
         let helpfulVotes = 0;
         if (review.reviewReaction) {
           const match = review.reviewReaction.match(/(\d+)/);
@@ -138,7 +137,6 @@ export class ReviewScraperService {
           }
         }
 
-        // Parse country from reviewedIn
         let country = 'Unknown';
         if (review.reviewedIn) {
           const match = review.reviewedIn.match(/in ([^on]+)/);
@@ -157,6 +155,7 @@ export class ReviewScraperService {
           author: review.userId,
           author_id: review.userId,
           author_profile: review.userProfileLink,
+          review_url: review.reviewUrl,
           helpful_votes: helpfulVotes,
           variant: review.variant || null,
           variant_attributes: review.variantAttributes ? review.variantAttributes : null,
