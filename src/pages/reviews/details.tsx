@@ -305,8 +305,7 @@ export function DetailsPage() {
                       
                       {/* Price and Rating */}
                       <div className="flex items-center gap-8 p-4 bg-muted/50 rounded-lg">
-                        <div className="flex items-center gap-2">
-                          <DollarSign className="h-5 w-5 text-muted-foreground" />
+                        <div className="flex items-center gap-2 px-4 py-2 bg-muted rounded-md">
                           <span className="text-2xl font-bold">
                             {formatCurrency(product.price)}
                           </span>
@@ -370,17 +369,17 @@ export function DetailsPage() {
                   {/* Specifications */}
                   {Object.keys(product.specifications || {}).length > 0 && (
                     <Collapsible>
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg hover:bg-muted/70 transition-colors cursor-pointer">
                         <h3 className="text-lg font-semibold">Specifications</h3>
                         <CollapsibleTrigger asChild>
-                          <Button variant="ghost" size="sm" className="w-9 p-0">
+                          <Button variant="ghost" size="sm" className="w-9 p-0 hover:bg-background/50">
                             <ChevronsUpDown className="h-4 w-4" />
                             <span className="sr-only">Toggle specifications</span>
                           </Button>
                         </CollapsibleTrigger>
                       </div>
                       <CollapsibleContent className="mt-4">
-                        <div className="grid grid-cols-2 gap-4 bg-muted/50 rounded-lg p-4">
+                        <div className="grid grid-cols-2 gap-4 bg-muted/30 rounded-lg p-4">
                           {Object.entries(product.specifications).map(([key, value]) => (
                             <div key={key} className="flex justify-between">
                               <span className="text-muted-foreground">{key}</span>
