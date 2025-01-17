@@ -105,24 +105,8 @@ export class ReviewScraperService {
         throw new Error('Invalid review data format from Apify');
       }
 
-      // Calculate review statistics
-      const totalReviews = rawReviews.length;
+      // Count verified reviews
       const verifiedReviews = rawReviews.filter(r => r.isVerified).length;
-      const ratingCounts = rawReviews.reduce((acc, review) => {
-        const rating = review.ratingScore;
-        acc[`${rating}star`] = (acc[`${rating}star`] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>);
-
-      const starsBreakdown = {
-        '5star': (ratingCounts['5star'] || 0) / totalReviews,
-        '4star': (ratingCounts['4star'] || 0) / totalReviews,
-        '3star': (ratingCounts['3star'] || 0) / totalReviews,
-        '2star': (ratingCounts['2star'] || 0) / totalReviews,
-        '1star': (ratingCounts['1star'] || 0) / totalReviews
-      };
-
-      const averageRating = rawReviews.reduce((sum, review) => sum + review.ratingScore, 0) / totalReviews;
 
       // Update product review summary
       const { error: updateError } = await supabase
@@ -130,9 +114,6 @@ export class ReviewScraperService {
         .update({
           review_summary: {
             ...product.review_summary,
-            rating: averageRating,
-            reviewCount: totalReviews,
-            starsBreakdown,
             verifiedPurchases: verifiedReviews,
             lastUpdated: new Date().toISOString()
           }
