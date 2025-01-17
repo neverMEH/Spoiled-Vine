@@ -611,31 +611,41 @@ export function DetailsPage() {
                                 <h4 className="font-medium">{review?.title || 'Review'}</h4>
                               </div>
                               <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                                {review.variant && (
+                                  <Badge variant="outline">
+                                    {review.variant}
+                                  </Badge>
+                                )}
                                 <div className="flex items-center gap-1">
                                   <Calendar className="h-4 w-4" />
-                                  {formatDate(review?.review_date || review?.date)}
+                                  {formatDate(review.review_date || review.date)}
                                 </div>
-                                {(review?.verified_purchase || review?.verified) && (
+                                {(review.verified_purchase || review.verified) && (
                                   <Badge variant="success">Verified Purchase</Badge>
                                 )}
                               </div>
                             </div>
-                            <p className="text-sm text-muted-foreground">
-                              By {review?.author || 'Anonymous'}
-                            </p>
-                            <p className="text-sm">{review?.content || review?.text}</p>
-                            {review?.images && review.images.length > 0 && (
-                              <div className="grid grid-cols-6 gap-2 mt-3">
-                                {review.images.map((image, imageIndex) => (
-                                  <img
-                                    key={imageIndex}
-                                    src={image}
-                                    alt={`Review image ${imageIndex + 1}`}
-                                    className="aspect-square w-full object-cover rounded-md border hover:border-primary transition-colors cursor-zoom-in"
-                                  />
-                                ))}
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                {review.helpful_votes > 0 && (
+                                  <Badge variant="outline" className="flex items-center gap-1">
+                                    <span>👍</span>
+                                    <span>{review.helpful_votes.toLocaleString()}</span>
+                                  </Badge>
+                                )}
+                                {review.reviewUrl && (
+                                  <a
+                                    href={review.reviewUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-sm text-primary hover:underline"
+                                  >
+                                    View Review →
+                                  </a>
+                                )}
                               </div>
-                            )}
+                            </div>
+                            <p className="text-sm whitespace-pre-wrap">{review.content || review.text}</p>
                           </div>
                         ))
                       ) : (
@@ -681,15 +691,25 @@ export function DetailsPage() {
                                     )}
                                   </div>
                                 </div>
-                                <p className="text-sm text-muted-foreground">
-                                  By {review.author || 'Anonymous'}
-                                </p>
-                                <p className="text-sm">{review.content || review.text}</p>
-                                {review.helpful_votes > 0 && (
-                                  <p className="text-sm text-muted-foreground">
-                                    {review.helpful_votes} {review.helpful_votes === 1 ? 'person' : 'people'} found this helpful
-                                  </p>
-                                )}
+                                <div className="flex items-center gap-2">
+                                  {review.helpful_votes > 0 && (
+                                    <Badge variant="outline" className="flex items-center gap-1">
+                                      <span>👍</span>
+                                      <span>{review.helpful_votes.toLocaleString()}</span>
+                                    </Badge>
+                                  )}
+                                  {review.reviewUrl && (
+                                    <a
+                                      href={review.reviewUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-sm text-primary hover:underline"
+                                    >
+                                      View Review →
+                                    </a>
+                                  )}
+                                </div>
+                                <p className="text-sm whitespace-pre-wrap">{review.content || review.text}</p>
                               </div>
                             ))
                         ) : (
@@ -737,20 +757,30 @@ export function DetailsPage() {
                                     )}
                                   </div>
                                 </div>
-                                <p className="text-sm text-muted-foreground">
-                                  By {review.author || 'Anonymous'}
-                                </p>
-                                <p className="text-sm">{review.content || review.text}</p>
-                                {review.helpful_votes > 0 && (
-                                  <p className="text-sm text-muted-foreground">
-                                    {review.helpful_votes} {review.helpful_votes === 1 ? 'person' : 'people'} found this helpful
-                                  </p>
-                                )}
+                                <div className="flex items-center gap-2">
+                                  {review.helpful_votes > 0 && (
+                                    <Badge variant="outline" className="flex items-center gap-1">
+                                      <span>👍</span>
+                                      <span>{review.helpful_votes.toLocaleString()}</span>
+                                    </Badge>
+                                  )}
+                                  {review.reviewUrl && (
+                                    <a
+                                      href={review.reviewUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-sm text-primary hover:underline"
+                                    >
+                                      View Review →
+                                    </a>
+                                  )}
+                                </div>
+                                <p className="text-sm whitespace-pre-wrap">{review.content || review.text}</p>
                               </div>
                             ))
                         ) : (
                           <div className="text-center py-8 text-muted-foreground">
-                            No reviews available
+                            No critical reviews available
                           </div>
                         )}
                       </div>

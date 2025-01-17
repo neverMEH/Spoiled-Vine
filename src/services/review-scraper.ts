@@ -158,7 +158,6 @@ export class ReviewScraperService {
           author_id: review.userId,
           author_profile: review.userProfileLink,
           helpful_votes: helpfulVotes,
-          images: review.reviewImages || [],
           variant: review.variant || null,
           variant_attributes: review.variantAttributes ? review.variantAttributes : null,
           country: country

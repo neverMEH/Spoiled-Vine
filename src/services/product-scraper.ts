@@ -138,7 +138,7 @@ export class ProductScraperService {
             variations: product.variations,
             frequently_bought_together: product.frequentlyBoughtTogether,
             customer_questions: product.customerQuestions,
-            images: product.images,
+            images: product.images?.slice(0, 10) || [], // Only store first 10 product images
             categories: product.categories,
             features: product.features,
             description: product.description,
