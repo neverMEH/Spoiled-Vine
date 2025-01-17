@@ -584,6 +584,7 @@ export function DetailsPage() {
                       <TabsTrigger value="recent">Most Recent</TabsTrigger>
                       <TabsTrigger value="helpful">Most Helpful</TabsTrigger>
                       <TabsTrigger value="critical">Critical Reviews</TabsTrigger>
+                      <TabsTrigger value="unverified">Unverified Reviews</TabsTrigger>
                     </TabsList>
 
                     <TabsContent value="recent" className="space-y-4">
@@ -780,6 +781,69 @@ export function DetailsPage() {
                         ) : (
                           <div className="text-center py-8 text-muted-foreground">
                             No critical reviews available
+                          </div>
+                        )}
+                      </div>
+                    </TabsContent>
+
+                    <TabsContent value="unverified">
+                      <div className="space-y-4">
+                        {Array.isArray(product.reviews) && product.reviews.length > 0 ? (
+                          product.reviews
+                            .filter(review => !(review.verified_purchase || review.verified))
+                            .map((review: any) => (
+                              <div
+                                key={review.review_id || review.id}
+                                className="border-b last:border-0 pb-6 last:pb-0 pt-6 first:pt-0 space-y-3"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <div className="flex">
+                                      {Array.from({ length: 5 }).map((_, i) => (
+                                        <Star
+                                          key={i}
+                                          className={`h-4 w-4 ${
+                                            i < (review.rating || 0)
+                                              ? 'fill-primary text-primary'
+                                              : 'fill-muted text-muted'
+                                          }`}
+                                        />
+                                      ))}
+                                    </div>
+                                    <h4 className="font-medium">{review.title || 'Review'}</h4>
+                                  </div>
+                                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                                    <div className="flex items-center gap-1">
+                                      <Calendar className="h-4 w-4" />
+                                      {formatDate(review.review_date || review.date)}
+                                    </div>
+                                    <Badge variant="secondary">Unverified</Badge>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  {review.helpful_votes > 0 && (
+                                    <Badge variant="outline" className="flex items-center gap-1">
+                                      <span>👍</span>
+                                      <span>{review.helpful_votes.toLocaleString()}</span>
+                                    </Badge>
+                                  )}
+                                  {review.reviewUrl && (
+                                    <a
+                                      href={review.reviewUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-sm text-primary hover:underline"
+                                    >
+                                      View Review →
+                                    </a>
+                                  )}
+                                </div>
+                                <p className="text-sm whitespace-pre-wrap">{review.content || review.text}</p>
+                              </div>
+                            ))
+                        ) : (
+                          <div className="text-center py-8 text-muted-foreground">
+                            No unverified reviews available
                           </div>
                         )}
                       </div>
