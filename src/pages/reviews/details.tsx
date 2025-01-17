@@ -144,9 +144,16 @@ export function DetailsPage() {
     try {
       const { data, error } = await supabase
         .from('product_history')
-        .select('*')
+        .select(`
+          price,
+          rating,
+          review_count,
+          best_sellers_rank,
+          captured_at
+        `)
         .eq('product_id', productId)
-        .order('captured_at', { ascending: true });
+        .order('captured_at', { ascending: true })
+        .limit(30); // Last 30 data points
 
       if (error) throw error;
 
@@ -156,30 +163,46 @@ export function DetailsPage() {
       const ranks: Array<{ date: string; value: number }> = [];
 
       data.forEach(record => {
-        const date = record.captured_at;
+        const date = new Date(record.captured_at).toISOString();
         
-        if (record.price) {
+        if (record.price !== null && !isNaN(record.price)) {
           prices.push({ date, value: record.price });
         }
         
-        if (record.rating) {
+        if (record.rating !== null && !isNaN(record.rating)) {
           ratings.push({ date, value: record.rating });
         }
         
-        if (record.review_count) {
+        if (record.review_count !== null && !isNaN(record.review_count)) {
           reviews.push({ date, value: record.review_count });
         }
         
-        if (record.best_sellers_rank?.[0]?.rank) {
+        if (record.best_sellers_rank?.[0]?.rank !== null && !isNaN(record.best_sellers_rank[0].rank)) {
           ranks.push({ date, value: record.best_sellers_rank[0].rank });
         }
       });
+
+      // Sort data points by date
+      const sortByDate = (a: { date: string }, b: { date: string }) => 
+        new Date(a.date).getTime() - new Date(b.date).getTime();
+
+      prices.sort(sortByDate);
+      ratings.sort(sortByDate);
+      reviews.sort(sortByDate);
+      ranks.sort(sortByDate);
 
       setHistoricalData({
         prices,
         ratings,
         reviews,
         ranks
+      });
+
+      console.log('Historical data loaded:', {
+        prices: prices.length,
+        ratings: ratings.length,
+        reviews: reviews.length,
+        ranks: ranks.length
       });
     } catch (error) {
       console.error('Error fetching historical data:', error);
