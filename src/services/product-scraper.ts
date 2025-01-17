@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 interface ScrapingTask {
   id: string;
   asins: string[];
-  status: 'pending' | 'processing' | 'completed' | 'failed';
+  status: 'pending' | 'processing' | 'completed' | 'failed' | 'refreshing';
   progress: number;
   error?: string;
   startedAt: string;
@@ -48,6 +48,18 @@ export class ProductScraperService {
   private async monitorTask(taskId: string) {
     const task = this.tasks.get(taskId);
     if (!task) return;
+    
+    // Update product status to refreshing
+    try {
+      for (const asin of task.asins) {
+        await supabase
+          .from('products')
+          .update({ status: 'refreshing' })
+          .eq('asin', asin);
+      }
+    } catch (error) {
+      console.error('Error updating product status:', error);
+    }
 
     try {
       const status = await apifyService.getTaskStatus(taskId);
@@ -70,6 +82,13 @@ export class ProductScraperService {
       // If task is completed, process results
       if (task.status === 'completed') {
         await this.processResults(taskId);
+        // Update product status back to active
+        for (const asin of task.asins) {
+          await supabase
+            .from('products')
+            .update({ status: 'active' })
+            .eq('asin', asin);
+        }
       }
       // If task is still running, continue monitoring
       else if (task.status === 'processing') {
@@ -138,7 +157,11 @@ export class ProductScraperService {
             variations: product.variations,
             frequently_bought_together: product.frequentlyBoughtTogether,
             customer_questions: product.customerQuestions,
-            images: product.images?.slice(0, 10) || [], // Only store first 10 product images
+            images: Array.isArray(product.images) 
+              ? product.images
+                .filter(url => url && typeof url === 'string' && url.startsWith('http'))
+                .slice(0, 10)
+              : [],
             categories: product.categories,
             features: product.features,
             description: product.description,

@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { DataTableViewOptions } from "./data-table-view-options";
 import { LoadingSpinner } from "@/components/feedback/loading-spinner";
 import { useToast } from "@/hooks/use-toast";
-import { productScraperService } from "@/services/product-scraper";
+import { queueManager } from "@/services/queue-manager";
 
 import { Product } from "./columns";
 
@@ -27,15 +27,16 @@ export function DataTableToolbar({ table, onRefresh }: DataTableToolbarProps) {
     try {
       setIsRefreshing(true);
       const asins = selectedRows.map(row => row.original.asin);
-      await productScraperService.startScraping(asins);
+      await queueManager.addToQueue(asins);
+      
       toast({
         title: "Refresh Started",
-        description: `Started refreshing ${asins.length} products.`,
+        description: `Added ${asins.length} products to the refresh queue.`,
       });
+      
       if (onRefresh) {
         await onRefresh();
       }
-      table.toggleAllRowsSelected(false);
     } catch (error) {
       toast({
         title: "Error",

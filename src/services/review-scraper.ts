@@ -159,6 +159,7 @@ export class ReviewScraperService {
           helpful_votes: helpfulVotes,
           variant: review.variant || null,
           variant_attributes: review.variantAttributes ? review.variantAttributes : null,
+          images: review.reviewImages || [],
           country: country
         };
       });

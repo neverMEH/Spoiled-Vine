@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { LoadingSpinner } from "@/components/feedback/loading-spinner";
 import { useToast } from "@/hooks/use-toast";
-import { productScraperService } from "@/services/product-scraper";
+import { queueManager } from "@/services/queue-manager";
 import { Product } from "./columns";
 
 interface DataTableRowActionsProps {
@@ -29,11 +29,13 @@ export function DataTableRowActions({ row, onRefresh }: DataTableRowActionsProps
   const handleRefresh = async () => {
     try {
       setIsRefreshing(true);
-      await productScraperService.startScraping([row.original.asin]);
+      await queueManager.addToQueue([row.original.asin]);
+      
       toast({
         title: "Refresh Started",
-        description: "Product data refresh has been initiated.",
+        description: "Product has been added to the refresh queue.",
       });
+      
       if (onRefresh) {
         await onRefresh();
       }
