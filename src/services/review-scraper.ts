@@ -84,6 +84,10 @@ export class ReviewScraperService {
 
   private async processResults(taskId: string) {
     try {
+      if (!taskId) {
+        throw new Error('Invalid task ID');
+      }
+
       const task = this.tasks.get(taskId);
       if (!task) {
         throw new Error('Task not found');
@@ -92,7 +96,7 @@ export class ReviewScraperService {
       // Get the product first
       const { data: product, error: productError } = await supabase
         .from('products')
-        .select('id, review_summary')
+        .select('id, rating_data, review_summary, reviews')
         .eq('asin', task.asin)
         .single();
 
@@ -102,61 +106,85 @@ export class ReviewScraperService {
 
       const rawReviews = await apifyReviewScraper.getResults(taskId);
       if (!Array.isArray(rawReviews)) {
-        throw new Error('Invalid review data format from Apify');
+        throw new Error('Invalid review data format from Apify: not an array');
       }
+
+      console.log(`Processing ${rawReviews.length} reviews for ASIN ${task.asin}`);
 
       // Count verified reviews
       const verifiedReviews = rawReviews.filter(r => r.isVerified).length;
 
-      // Update product review summary
+      // Keep existing rating data
+      const rating_data = product.rating_data || {
+        rating: 0,
+        reviewCount: 0,
+        starsBreakdown: {
+          '5star': 0,
+          '4star': 0,
+          '3star': 0,
+          '2star': 0,
+          '1star': 0
+        },
+        lastUpdated: null
+      };
+      // Transform and save reviews
+      const reviews = rawReviews.map(review => {
+        // Parse helpful votes from review reaction
+        let helpfulVotes = 0;
+        if (review.reviewReaction) {
+          const match = review.reviewReaction.match(/(\d+)/);
+          if (match) {
+            helpfulVotes = parseInt(match[1]);
+          }
+        }
+
+        // Parse country from reviewedIn
+        let country = 'Unknown';
+        if (review.reviewedIn) {
+          const match = review.reviewedIn.match(/in ([^on]+)/);
+          if (match) {
+            country = match[1].trim();
+          }
+        }
+
+        return {
+          review_id: review.reviewId,
+          title: review.reviewTitle,
+          content: review.reviewDescription,
+          rating: review.ratingScore,
+          review_date: new Date(review.date).toISOString(),
+          verified_purchase: review.isVerified,
+          author: review.userId,
+          author_id: review.userId,
+          author_profile: review.userProfileLink,
+          helpful_votes: helpfulVotes,
+          images: review.reviewImages || [],
+          variant: review.variant || null,
+          variant_attributes: review.variantAttributes ? review.variantAttributes : null,
+          country: country
+        };
+      });
+
+      // Update product with reviews and summary
       const { error: updateError } = await supabase
         .from('products')
         .update({
+          reviews: reviews,
           review_summary: {
-            ...product.review_summary,
             verifiedPurchases: verifiedReviews,
             lastUpdated: new Date().toISOString()
-          }
+          },
+          rating_data: rating_data,
+          updated_at: new Date().toISOString()
         })
         .eq('id', product.id);
 
       if (updateError) {
+        console.error('Error updating product with reviews:', updateError);
         throw updateError;
       }
 
-      // Transform and save reviews
-      const reviews = rawReviews.map(review => ({
-        review_id: review.reviewId,
-        product_id: product.id,
-        title: review.reviewTitle,
-        content: review.reviewDescription,
-        rating: review.ratingScore,
-        review_date: new Date(review.date),
-        verified_purchase: review.isVerified,
-        author: review.userId,
-        author_id: review.userId,
-        author_profile: review.userProfileLink,
-        helpful_votes: parseInt(review.reviewReaction?.split(' ')[0]) || 0,
-        images: review.reviewImages || [],
-        variant: review.variant || null,
-        variant_attributes: review.variantAttributes ? review.variantAttributes : null,
-        country: review.reviewedIn?.split(' in ')[1]?.replace(' on', '') || 'Unknown'
-      }));
-
-      // Upsert reviews to database
-      const { error: reviewsError } = await supabase
-        .from('reviews')
-        .upsert(
-          reviews,
-          {
-            onConflict: 'product_id,review_id',
-            ignoreDuplicates: false
-          }
-        );
-
-      if (reviewsError) {
-        throw reviewsError;
-      }
+      console.log(`Successfully stored ${reviews.length} reviews for ASIN ${task.asin}`);
 
       // Mark task as completed
       task.completedAt = new Date().toISOString();

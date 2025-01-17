@@ -105,21 +105,23 @@ export class ProductScraperService {
             .eq('asin', product.asin)
             .single();
 
-          // Prepare review summary
-          const totalReviews = product.reviewsCount || 0;
-          const starsBreakdown = product.starsBreakdown || {
-            '5star': 0,
-            '4star': 0,
-            '3star': 0,
-            '2star': 0,
-            '1star': 0
+          // Store rating data from product scraper
+          const rating_data = {
+            rating: product.stars || 0,
+            reviewCount: product.reviewsCount || 0,
+            starsBreakdown: {
+              '5star': product.starsBreakdown?.['5star'] || 0,
+              '4star': product.starsBreakdown?.['4star'] || 0,
+              '3star': product.starsBreakdown?.['3star'] || 0,
+              '2star': product.starsBreakdown?.['2star'] || 0,
+              '1star': product.starsBreakdown?.['1star'] || 0
+            },
+            lastUpdated: new Date().toISOString()
           };
-
-          const reviewSummary = {
-            rating: product.rating || 0,
-            reviewCount: totalReviews,
-            starsBreakdown,
-            verifiedPurchases: 0, // This will be updated by review scraper
+          
+          // Initialize review summary (will be updated by review scraper)
+          const review_summary = {
+            verifiedPurchases: 0,
             lastUpdated: new Date().toISOString()
           };
 
@@ -140,7 +142,9 @@ export class ProductScraperService {
             categories: product.categories,
             features: product.features,
             description: product.description,
-            review_summary: reviewSummary,
+            rating_data,
+            review_summary,
+            reviews: [], // Initialize empty reviews array, will be populated by review scraper
             status: 'active',
             updated_at: new Date().toISOString()
           };

@@ -17,7 +17,7 @@ interface ApifyProduct {
   currency: string;
   brand: string;
   availability: string;
-  rating: number;
+  stars: number;
   reviewsCount: number;
   dimensions?: {
     width?: string;
@@ -121,7 +121,7 @@ class ApifyService {
     const input = {
       asins: uniqueAsins,
       amazonDomain: "amazon.com",
-      maxReviews: 1,
+      maxReviews: 500,
       maxAnswers: 20,
       scrapeReviews: true,
       scrapeDescription: true,

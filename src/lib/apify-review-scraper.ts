@@ -93,7 +93,6 @@ class ApifyReviewScraper {
   async startScraping(asin: string): Promise<string> {
     const input = {
       filterByRatings: ["allStars"],
-      includeGdprSensitive: false,
       maxReviews: 500,
       productUrls: [
         {
@@ -101,25 +100,25 @@ class ApifyReviewScraper {
           method: "GET"
         }
       ],
+      proxyConfiguration: {
+        useApifyProxy: true,
+        countryCode: "US"
+      },
       proxyCountry: "AUTO_SELECT_PROXY_COUNTRY",
-      reviewsAlwaysSaveCategoryData: false,
-      reviewsEnqueueProductVariants: false,
-      reviewsUseProductVariantFilter: true,
-      scrapeProductDetails: false,
-      scrapeQuickProductReviews: true,
       sort: "recent"
     };
 
     try {
       // Use the direct run-sync endpoint
-      const result = await this.request<ApifyReview[]>(
-        `/acts/${this.actorId}/run-sync-get-dataset-items`,
-        { method: 'POST', body: JSON.stringify(input) }
+      const result = await this.request<{ data: { id: string } }>(
+        `/acts/${this.actorId}/runs`,
+        {
+          method: 'POST',
+          body: JSON.stringify(input),
+        }
       );
 
-      // Store the results directly since this is a synchronous call
-      this.results.set(asin, result);
-      return asin; // Use ASIN as task ID since we're not using async runs
+      return result.data.id;
 
     } catch (error) {
       console.error('Failed to start review scraping:', error);
@@ -130,27 +129,37 @@ class ApifyReviewScraper {
     }
   }
 
-  private results: Map<string, ApifyReview[]> = new Map();
-
   async getTaskStatus(taskId: string): Promise<{
     status: string;
     progress: number;
     error?: string;
   }> {
-    // Since we're using sync API, task is always complete
-    return {
-      status: 'SUCCEEDED',
-      progress: 100
-    };
+    try {
+      const result = await this.request<{ data: ApifyTask }>(
+        `/acts/${this.actorId}/runs/${taskId}`
+      );
+
+      return {
+        status: result.data.status,
+        progress: result.data.progress?.percent || 0,
+      };
+    } catch (error) {
+      console.error('Failed to get task status:', error);
+      throw new Error('Failed to get task status');
+    }
   }
 
   async getResults(taskId: string): Promise<ApifyReview[]> {
-    // Return stored results from sync call
-    const results = this.results.get(taskId);
-    if (!results) {
-      throw new Error('No results found for task');
+    try {
+      const result = await this.request<ApifyReview[]>(
+        `/actor-runs/${taskId}/dataset/items`
+      );
+
+      return result;
+    } catch (error) {
+      console.error('Failed to get review results:', error);
+      throw new Error('Failed to get review results');
     }
-    return results;
   }
 }
 

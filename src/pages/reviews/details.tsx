@@ -55,7 +55,7 @@ interface ProductDetails {
   categories: string[];
   features: string[];
   description: string;
-  review_summary: {
+  rating_data: {
     rating: number;
     reviewCount: number;
     starsBreakdown: {
@@ -65,6 +65,9 @@ interface ProductDetails {
       '2star': number;
       '1star': number;
     };
+    lastUpdated: string | null;
+  };
+  review_summary: {
     verifiedPurchases: number;
     lastUpdated: string;
   };
@@ -207,6 +210,17 @@ export function DetailsPage() {
     }
   };
 
+  // Add rating data to display
+  const rating = product?.rating_data?.rating || 0;
+  const reviewCount = product?.rating_data?.reviewCount || 0;
+  const starsBreakdown = product?.rating_data?.starsBreakdown || {
+    '5star': 0,
+    '4star': 0,
+    '3star': 0,
+    '2star': 0,
+    '1star': 0
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -300,10 +314,10 @@ export function DetailsPage() {
                         <div className="flex items-center gap-2">
                           <Star className="h-5 w-5 fill-primary text-primary" />
                           <span className="text-2xl font-bold">
-                            {product.review_summary?.rating?.toFixed(1) || 'N/A'}
+                            {rating.toFixed(1)}
                           </span>
                           <span className="text-muted-foreground">
-                            ({product.review_summary?.reviewCount.toLocaleString()} reviews)
+                            ({reviewCount.toLocaleString()} reviews)
                           </span>
                         </div>
                       </div>
@@ -461,20 +475,20 @@ export function DetailsPage() {
                         <div className="flex items-center gap-2">
                           <Star className="h-8 w-8 fill-primary text-primary" />
                           <span className="text-4xl font-bold">
-                            {product.review_summary?.rating?.toFixed(1) || 'N/A'}
+                            {rating.toFixed(1)}
                           </span>
                           <span className="text-muted-foreground">
                             out of 5
                           </span>
                         </div>
                         <p className="text-sm text-muted-foreground">
-                          Based on {product.review_summary?.reviewCount.toLocaleString()} reviews
+                          Based on {reviewCount.toLocaleString()} reviews
                         </p>
                       </div>
 
                       {/* Rating Distribution */}
                       <div className="space-y-3">
-                        {Object.entries(product.review_summary?.starsBreakdown || {})
+                        {Object.entries(starsBreakdown)
                           .sort((a, b) => parseInt(b[0]) - parseInt(a[0]))
                           .map(([stars, percentage]) => {
                             const percent = percentage * 100;
@@ -510,15 +524,15 @@ export function DetailsPage() {
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Total Reviews</span>
-                        <span>{product.review_summary?.reviewCount.toLocaleString()}</span>
+                        <span>{reviewCount.toLocaleString()}</span>
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Verified Purchases</span>
-                        <span>{product.review_summary?.verifiedPurchases || 0}</span>
+                        <span>{(product?.review_summary?.verifiedPurchases || 0).toLocaleString()}</span>
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Last Updated</span>
-                        <span>{formatDate(new Date(product.updated_at))}</span>
+                        <span>{formatDate(product?.rating_data?.lastUpdated || product?.updated_at)}</span>
                       </div>
                     </div>
                   </CardContent>
@@ -587,30 +601,30 @@ export function DetailsPage() {
                                     <Star
                                       key={i}
                                       className={`h-4 w-4 ${
-                                        i < (review.rating || 0)
+                                        i < (review?.rating || 0)
                                           ? 'fill-primary text-primary'
                                           : 'fill-muted text-muted'
                                       }`}
                                     />
                                   ))}
                                 </div>
-                                <h4 className="font-medium">{review.title || 'Review'}</h4>
+                                <h4 className="font-medium">{review?.title || 'Review'}</h4>
                               </div>
                               <div className="flex items-center gap-4 text-sm text-muted-foreground">
                                 <div className="flex items-center gap-1">
                                   <Calendar className="h-4 w-4" />
-                                  {formatDate(review.review_date || review.date)}
+                                  {formatDate(review?.review_date || review?.date)}
                                 </div>
-                                {(review.verified_purchase || review.verified) && (
+                                {(review?.verified_purchase || review?.verified) && (
                                   <Badge variant="success">Verified Purchase</Badge>
                                 )}
                               </div>
                             </div>
                             <p className="text-sm text-muted-foreground">
-                              By {review.author || 'Anonymous'}
+                              By {review?.author || 'Anonymous'}
                             </p>
-                            <p className="text-sm">{review.content || review.text}</p>
-                            {review.images && review.images.length > 0 && (
+                            <p className="text-sm">{review?.content || review?.text}</p>
+                            {review?.images && review.images.length > 0 && (
                               <div className="grid grid-cols-6 gap-2 mt-3">
                                 {review.images.map((image, imageIndex) => (
                                   <img
@@ -676,18 +690,6 @@ export function DetailsPage() {
                                     {review.helpful_votes} {review.helpful_votes === 1 ? 'person' : 'people'} found this helpful
                                   </p>
                                 )}
-                                {review.images && review.images.length > 0 && (
-                                  <div className="grid grid-cols-6 gap-2 mt-3">
-                                    {review.images.map((image, imageIndex) => (
-                                      <img
-                                        key={imageIndex}
-                                        src={image}
-                                        alt={`Review image ${imageIndex + 1}`}
-                                        className="aspect-square w-full object-cover rounded-md border hover:border-primary transition-colors cursor-zoom-in"
-                                      />
-                                    ))}
-                                  </div>
-                                )}
                               </div>
                             ))
                         ) : (
@@ -744,23 +746,11 @@ export function DetailsPage() {
                                     {review.helpful_votes} {review.helpful_votes === 1 ? 'person' : 'people'} found this helpful
                                   </p>
                                 )}
-                                {review.images && review.images.length > 0 && (
-                                  <div className="grid grid-cols-6 gap-2 mt-3">
-                                    {review.images.map((image, imageIndex) => (
-                                      <img
-                                        key={imageIndex}
-                                        src={image}
-                                        alt={`Review image ${imageIndex + 1}`}
-                                        className="aspect-square w-full object-cover rounded-md border hover:border-primary transition-colors cursor-zoom-in"
-                                      />
-                                    ))}
-                                  </div>
-                                )}
                               </div>
                             ))
                         ) : (
                           <div className="text-center py-8 text-muted-foreground">
-                            No critical reviews available
+                            No reviews available
                           </div>
                         )}
                       </div>
