@@ -59,16 +59,6 @@ interface ApifyProduct {
   categories: string[];
   features: string[];
   description: string;
-  reviews?: {
-    id: string;
-    title: string;
-    text: string;
-    rating: number;
-    date: string;
-    verified: boolean;
-    author: string;
-    images?: string[];
-  }[];
 }
 
 class ApifyService {

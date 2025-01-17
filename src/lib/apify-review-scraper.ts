@@ -104,7 +104,7 @@ class ApifyReviewScraper {
       proxyCountry: "AUTO_SELECT_PROXY_COUNTRY",
       reviewsAlwaysSaveCategoryData: false,
       reviewsEnqueueProductVariants: false,
-      reviewsUseProductVariantFilter: false,
+      reviewsUseProductVariantFilter: true,
       scrapeProductDetails: false,
       scrapeQuickProductReviews: true,
       sort: "recent"

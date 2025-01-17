@@ -89,65 +89,92 @@ export class ReviewScraperService {
         throw new Error('Task not found');
       }
 
+      // Get the product first
+      const { data: product, error: productError } = await supabase
+        .from('products')
+        .select('id, review_summary')
+        .eq('asin', task.asin)
+        .single();
+
+      if (productError || !product) {
+        throw new Error(`Product not found for ASIN ${task.asin}`);
+      }
+
       const rawReviews = await apifyReviewScraper.getResults(taskId);
       if (!Array.isArray(rawReviews)) {
         throw new Error('Invalid review data format from Apify');
       }
 
-      // Transform reviews to our format
+      // Calculate review statistics
+      const totalReviews = rawReviews.length;
+      const verifiedReviews = rawReviews.filter(r => r.isVerified).length;
+      const ratingCounts = rawReviews.reduce((acc, review) => {
+        const rating = review.ratingScore;
+        acc[`${rating}star`] = (acc[`${rating}star`] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+
+      const starsBreakdown = {
+        '5star': (ratingCounts['5star'] || 0) / totalReviews,
+        '4star': (ratingCounts['4star'] || 0) / totalReviews,
+        '3star': (ratingCounts['3star'] || 0) / totalReviews,
+        '2star': (ratingCounts['2star'] || 0) / totalReviews,
+        '1star': (ratingCounts['1star'] || 0) / totalReviews
+      };
+
+      const averageRating = rawReviews.reduce((sum, review) => sum + review.ratingScore, 0) / totalReviews;
+
+      // Update product review summary
+      const { error: updateError } = await supabase
+        .from('products')
+        .update({
+          review_summary: {
+            ...product.review_summary,
+            rating: averageRating,
+            reviewCount: totalReviews,
+            starsBreakdown,
+            verifiedPurchases: verifiedReviews,
+            lastUpdated: new Date().toISOString()
+          }
+        })
+        .eq('id', product.id);
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      // Transform and save reviews
       const reviews = rawReviews.map(review => ({
-        id: review.reviewId,
+        review_id: review.reviewId,
+        product_id: product.id,
         title: review.reviewTitle,
-        text: review.reviewDescription,
+        content: review.reviewDescription,
         rating: review.ratingScore,
-        date: review.date,
-        verified: review.isVerified,
+        review_date: new Date(review.date),
+        verified_purchase: review.isVerified,
         author: review.userId,
         author_id: review.userId,
         author_profile: review.userProfileLink,
         helpful_votes: parseInt(review.reviewReaction?.split(' ')[0]) || 0,
         images: review.reviewImages || [],
         variant: review.variant || null,
-        variant_attributes: review.variantAttributes || [],
+        variant_attributes: review.variantAttributes ? review.variantAttributes : null,
         country: review.reviewedIn?.split(' in ')[1]?.replace(' on', '') || 'Unknown'
       }));
 
-      // Calculate review summary
-      const reviewSummary = {
-        rating: reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length || 0,
-        reviewCount: reviews.length,
-        starsBreakdown: reviews.reduce((acc, r) => {
-          const key = `${r.rating}star` as keyof typeof acc;
-          acc[key] = (acc[key] || 0) + 1;
-          return acc;
-        }, {
-          '5star': 0,
-          '4star': 0,
-          '3star': 0,
-          '2star': 0,
-          '1star': 0
-        }),
-        verifiedPurchases: reviews.filter(r => r.verified).length,
-        lastUpdated: new Date().toISOString()
-      };
+      // Upsert reviews to database
+      const { error: reviewsError } = await supabase
+        .from('reviews')
+        .upsert(
+          reviews,
+          {
+            onConflict: 'product_id,review_id',
+            ignoreDuplicates: false
+          }
+        );
 
-      // Update the product with new reviews and summary
-      const { error: updateError } = await supabase
-        .from('products')
-        .update({
-          reviews: reviews,
-          review_summary: reviewSummary,
-          review_data: {
-            lastScraped: new Date().toISOString(),
-            scrapedReviews: reviews.length,
-            scrapeStatus: 'completed'
-          },
-          updated_at: new Date().toISOString()
-        })
-        .eq('asin', task.asin);
-
-      if (updateError) {
-        throw updateError;
+      if (reviewsError) {
+        throw reviewsError;
       }
 
       // Mark task as completed
