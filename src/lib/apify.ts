@@ -122,7 +122,7 @@ class ApifyService {
       asins: uniqueAsins,
       amazonDomain: "amazon.com",
       maxReviews: 500,
-      maxAnswers: 20,
+      maxAnswers: 1,
       scrapeReviews: true,
       scrapeDescription: true,
       scrapeFilters: true,

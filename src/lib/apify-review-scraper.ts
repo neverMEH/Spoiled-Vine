@@ -93,7 +93,7 @@ class ApifyReviewScraper {
   async startScraping(asin: string): Promise<string> {
     const input = {
       filterByRatings: ["allStars"],
-      maxReviews: 500,
+      maxReviews: 400,
       productUrls: [
         {
           url: `https://www.amazon.com/dp/${asin}`,
@@ -106,6 +106,7 @@ class ApifyReviewScraper {
       },
       proxyCountry: "AUTO_SELECT_PROXY_COUNTRY",
       sort: "recent"
+      
     };
 
     try {

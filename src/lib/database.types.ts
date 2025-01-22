@@ -43,6 +43,41 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        review_violations: {
+          Row: {
+            id: string
+            review_id: string
+            product_id: string
+            violations: Json[]
+            scanned_at: string
+            overridden: boolean
+            overridden_by: string | null
+            overridden_at: string | null
+            created_at: string
+          }
+          Insert: {
+            id?: string
+            review_id: string
+            product_id: string
+            violations: Json[]
+            scanned_at?: string
+            overridden?: boolean
+            overridden_by?: string | null
+            overridden_at?: string | null
+            created_at?: string
+          }
+          Update: {
+            id?: string
+            review_id?: string
+            product_id?: string
+            violations?: Json[]
+            scanned_at?: string
+            overridden?: boolean
+            overridden_by?: string | null
+            overridden_at?: string | null
+            created_at?: string
+          }
+        }
       }
     }
   }
