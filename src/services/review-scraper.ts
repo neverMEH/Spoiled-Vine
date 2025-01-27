@@ -93,7 +93,7 @@ export class ReviewScraperService {
         throw new Error('Task not found');
       }
 
-      // Get the product first
+      // Get product first
       const { data: product, error: productError } = await supabase
         .from('products')
         .select('id, rating_data, review_summary, reviews')
@@ -103,92 +103,92 @@ export class ReviewScraperService {
       if (productError || !product) {
         throw new Error(`Product not found for ASIN ${task.asin}`);
       }
-
+      
       const rawReviews = await apifyReviewScraper.getResults(taskId);
-      if (!Array.isArray(rawReviews)) {
+      if (!rawReviews || !Array.isArray(rawReviews)) {
         throw new Error('Invalid review data format from Apify: not an array');
       }
 
       console.log(`Processing ${rawReviews.length} reviews for ASIN ${task.asin}`);
-
-      // Count verified reviews
-      const verifiedReviews = rawReviews.filter(r => r.isVerified).length;
-
-      // Keep existing rating data
-      const rating_data = product.rating_data || {
-        rating: 0,
-        reviewCount: 0,
-        starsBreakdown: {
-          '5star': 0,
-          '4star': 0,
-          '3star': 0,
-          '2star': 0,
-          '1star': 0
-        },
-        lastUpdated: null
-      };
-      // Transform and save reviews
-      const reviews = rawReviews.map(review => {
-        let helpfulVotes = 0;
-        if (review.reviewReaction) {
-          const match = review.reviewReaction.match(/(\d+)/);
-          if (match) {
-            helpfulVotes = parseInt(match[1]);
+      
+      // Insert reviews into reviews table
+      for (const review of rawReviews) {
+        try {
+          if (!review.reviewId) {
+            console.warn('Skipping review without ID:', review);
+            continue;
           }
-        }
 
-        let country = 'Unknown';
-        if (review.reviewedIn) {
-          const match = review.reviewedIn.match(/in ([^on]+)/);
-          if (match) {
-            country = match[1].trim();
+          const { error: insertError } = await supabase
+            .from('reviews')
+            .upsert({
+              product_id: product.id,
+              review_id: review.reviewId,
+              title: review.reviewTitle,
+              content: review.reviewDescription,
+              rating: review.ratingScore,
+              review_date: new Date(review.date).toISOString(),
+              verified_purchase: review.isVerified,
+              author: review.userId,
+              author_id: review.userId,
+              author_profile: review.userProfileLink,
+              helpful_votes: review.reviewReaction ? parseInt(review.reviewReaction.match(/\d+/)?.[0] || '0') : 0,
+              variant: review.variant || null,
+              variant_attributes: review.variantAttributes ? review.variantAttributes : null,
+              images: review.reviewImages || [],
+              country: review.reviewedIn?.replace('Reviewed in ', '') || 'Unknown'
+            }, {
+              onConflict: 'review_id',
+              ignoreDuplicates: false
+            });
+
+          if (insertError) {
+            console.error(`Error inserting review ${review.reviewId}:`, insertError);
           }
+        } catch (error) {
+          console.error(`Error processing review ${review.reviewId}:`, error);
         }
+      }
 
-        return {
-          review_id: review.reviewId,
-          title: review.reviewTitle,
-          content: review.reviewDescription,
-          rating: review.ratingScore,
-          review_date: new Date(review.date).toISOString(),
-          verified_purchase: review.isVerified,
-          author: review.userId,
-          author_id: review.userId,
-          author_profile: review.userProfileLink,
-          review_url: review.reviewUrl,
-          helpful_votes: helpfulVotes,
-          variant: review.variant || null,
-          variant_attributes: review.variantAttributes ? review.variantAttributes : null,
-          images: review.reviewImages || [],
-          country: country
-        };
-      });
-
-      // Update product with reviews and summary
-      const { error: updateError } = await supabase
+      // Update product status
+      const { error: statusError } = await supabase
         .from('products')
         .update({
-          reviews: reviews,
-          review_summary: {
-            verifiedPurchases: verifiedReviews,
-            lastUpdated: new Date().toISOString()
-          },
-          rating_data: rating_data,
+          status: 'active',
           updated_at: new Date().toISOString()
         })
         .eq('id', product.id);
 
-      if (updateError) {
-        console.error('Error updating product with reviews:', updateError);
-        throw updateError;
+      if (statusError) {
+        console.error('Error updating product status:', statusError);
       }
 
-      console.log(`Successfully stored ${reviews.length} reviews for ASIN ${task.asin}`);
+      console.log(`Successfully processed ${rawReviews.length} reviews for ASIN ${task.asin}`);
 
+      // Mark task as completed immediately after storing reviews
       // Mark task as completed
       task.completedAt = new Date().toISOString();
       task.status = 'completed';
       this.tasks.set(taskId, task);
+      
+      // Send to n8n for violation detection asynchronously
+      if (config.services.n8n.webhookUrl) {
+        fetch(config.services.n8n.webhookUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({ 
+            reviews: transformedReviews,
+            productId: product.id,
+            asin: task.asin
+          })
+        }).catch(error => {
+          console.error('Error sending reviews to n8n:', error);
+          // Non-blocking error - violation detection can fail without affecting review display
+        });
+      }
 
     } catch (error) {
       console.error('Error processing review results:', error);

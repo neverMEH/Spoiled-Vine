@@ -2,13 +2,16 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Package, Star, ChevronsUpDown } from 'lucide-react';
+import { Package, Star, ChevronsUpDown, AlertTriangle } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
+import { useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabase';
 
 interface ProductInfoProps {
   product: {
     title: string;
     brand: string;
+    id: string;
     price: number;
     rating_data: {
       rating: number;
@@ -22,6 +25,42 @@ interface ProductInfoProps {
     frequently_bought_together?: Array<{ title: string; price?: number }>;
     description?: string;
   };
+}
+
+function ViolationBadge({ productId }: { productId: string }) {
+  const [violationCount, setViolationCount] = useState(0);
+
+  useEffect(() => {
+    const fetchViolations = async () => {
+      const { data, error } = await supabase
+        .from('review_violations')
+        .select('*')
+        .eq('product_id', productId)
+        .eq('overridden', false);
+
+      if (error) {
+        console.error('Error fetching violations:', error);
+        return;
+      }
+
+      setViolationCount(data.length);
+    };
+
+    fetchViolations();
+  }, [productId]);
+
+  if (violationCount === 0) return null;
+
+  return (
+    <div className="mt-4 p-4 bg-red-50 dark:bg-red-950/50 rounded-lg border border-red-200 dark:border-red-800">
+      <div className="flex items-center gap-2">
+        <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" />
+        <Badge variant="destructive" className="text-sm">
+          {violationCount} Active {violationCount === 1 ? 'Violation' : 'Violations'}
+        </Badge>
+      </div>
+    </div>
+  );
 }
 
 export function ProductInfo({ product }: ProductInfoProps) {
@@ -115,6 +154,9 @@ export function ProductInfo({ product }: ProductInfoProps) {
             </ul>
           </div>
         )}
+
+        {/* Violations Badge */}
+        <ViolationBadge productId={product.id} />
 
         {/* Specifications */}
         {Object.keys(product.specifications || {}).length > 0 && (

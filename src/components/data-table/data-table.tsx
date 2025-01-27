@@ -1,5 +1,4 @@
 import * as React from "react";
-import { useState, useEffect } from "react";
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -26,12 +25,11 @@ import {
 
 import { DataTablePagination } from "./data-table-pagination";
 import { DataTableToolbar } from "./data-table-toolbar";
-import { supabase } from '@/lib/supabase';
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
-  onRefresh?: () => Promise<void>;
+  onRefresh?: (id?: string) => Promise<void>;
 }
 
 export function DataTable<TData, TValue>({
@@ -102,9 +100,7 @@ export function DataTable<TData, TValue>({
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
                       {flexRender(
-                        cell.column.columnDef.cell === columns[columns.length - 1].cell
-                          ? (props: any) => columns[columns.length - 1].cell!({ ...props, onRefresh })
-                          : cell.column.columnDef.cell,
+                        cell.column.columnDef.cell,
                         cell.getContext()
                       )}
                     </TableCell>

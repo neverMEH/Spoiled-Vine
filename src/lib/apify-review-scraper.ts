@@ -47,7 +47,7 @@ interface ApifyReview {
 class ApifyReviewScraper {
   private readonly baseUrl = 'https://api.apify.com/v2';
   private readonly token: string;
-  private readonly actorId = 'junglee~amazon-reviews-scraper';
+  private readonly actorId = 'R8WeJwLuzLZ6g4Bkk';
 
   constructor() {
     const token = config.services.apify.token;
@@ -92,8 +92,15 @@ class ApifyReviewScraper {
 
   async startScraping(asin: string): Promise<string> {
     const input = {
-      filterByRatings: ["allStars"],
-      maxReviews: 400,
+      deduplicateRedirectedAsins: true,
+      filterByRatings: [
+        "oneStar",
+        "twoStar",
+        "threeStar",
+        "critical"
+      ],
+      includeGdprSensitive: false,
+      maxReviews: 200,
       productUrls: [
         {
           url: `https://www.amazon.com/dp/${asin}`,
@@ -104,9 +111,13 @@ class ApifyReviewScraper {
         useApifyProxy: true,
         countryCode: "US"
       },
-      proxyCountry: "AUTO_SELECT_PROXY_COUNTRY",
+      proxyCountry: "AUTO_SELECT_PROXY_COUNTRY", 
+      reviewsAlwaysSaveCategoryData: false,
+      reviewsEnqueueProductVariants: false,
+      reviewsUseProductVariantFilter: false,
+      scrapeProductDetails: false,
+      scrapeQuickProductReviews: true,
       sort: "recent"
-      
     };
 
     try {
@@ -152,14 +163,62 @@ class ApifyReviewScraper {
 
   async getResults(taskId: string): Promise<ApifyReview[]> {
     try {
+      // Get results from Apify
       const result = await this.request<ApifyReview[]>(
         `/actor-runs/${taskId}/dataset/items`
       );
 
-      return result;
+      // Validate and format reviews
+      const reviews = Array.isArray(result) ? result : [];
+
+      // Send reviews directly to n8n
+      if (reviews && reviews.length > 0) {
+        try {
+          // Format reviews for n8n
+          const formattedReviews = reviews.map(review => ({
+            reviewId: review.reviewId,
+            title: review.reviewTitle,
+            content: review.reviewDescription,
+            rating: review.ratingScore,
+            date: review.date,
+            verified: review.isVerified,
+            author: review.userId,
+            authorProfile: review.userProfileLink,
+            helpfulVotes: review.reviewReaction ? parseInt(review.reviewReaction.match(/\d+/)?.[0] || '0') : 0,
+            variant: review.variant,
+            variantAttributes: review.variantAttributes,
+            images: review.reviewImages || [],
+            asin: review.productAsin
+          }));
+
+          const response = await fetch(config.services.n8n.webhookUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
+            body: JSON.stringify({ reviews: formattedReviews })
+          });
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`N8N request failed with status ${response.status}: ${errorText}`);
+          }
+
+          const responseData = await response.json();
+          console.log('N8N response:', responseData);
+
+        } catch (error) {
+          console.error('Failed to send reviews to n8n:', error);
+          // Don't throw here - we still want to return the reviews even if n8n fails
+          console.warn('Continuing despite n8n error');
+        }
+      }
+
+      return reviews;
     } catch (error) {
       console.error('Failed to get review results:', error);
-      throw new Error('Failed to get review results');
+      throw new Error(`Failed to get review results: ${error.message}`);
     }
   }
 }

@@ -3,8 +3,8 @@ import type { Config } from 'tailwindcss';
 const config: Config = {
   darkMode: ['class'],
   content: [
-    './src/**/*.{js,ts,jsx,tsx,mdx}',
-    './index.html',
+    './src/**/*.{js,ts,jsx,tsx}',
+    './index.html'
   ],
   theme: {
     container: {
@@ -72,10 +72,7 @@ const config: Config = {
     },
   },
   plugins: [
-    require('@tailwindcss/typography'),
-    require('@tailwindcss/forms'),
-    require('@tailwindcss/aspect-ratio'),
-    require('tailwindcss-animate'),
+    require('tailwindcss-animate')
   ],
 };
 

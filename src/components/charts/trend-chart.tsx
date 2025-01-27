@@ -1,6 +1,7 @@
-import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Line, LineChart, ResponsiveContainer, Tooltip, TooltipProps, XAxis, YAxis } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { formatDate, formatCurrency } from '@/lib/utils';
+import { formatDate } from '@/lib/utils';
+import { NameType } from 'recharts/types/component/DefaultTooltipContent';
 
 interface TrendChartProps {
   title: string;
@@ -8,6 +9,7 @@ interface TrendChartProps {
     date: string;
     value: number;
   }>;
+  color?: string;
   valueFormatter?: (value: number) => string;
   className?: string;
 }
@@ -15,6 +17,7 @@ interface TrendChartProps {
 export function TrendChart({
   title,
   data,
+  color = 'hsl(var(--primary))',
   valueFormatter = (value: number) => value.toString(),
   className
 }: TrendChartProps) {
@@ -61,8 +64,9 @@ export function TrendChart({
                 axisLine={false}
               />
               <Tooltip
-                content={({ active, payload }) => {
+                content={({ active, payload }: TooltipProps<number, NameType>) => {
                   if (active && payload && payload.length) {
+                    const value = payload[0].value ?? 0;
                     return (
                       <div className="rounded-lg border bg-background p-2 shadow-sm">
                         <div className="grid grid-cols-2 gap-2">
@@ -71,7 +75,7 @@ export function TrendChart({
                               Date
                             </span>
                             <span className="font-bold text-muted-foreground">
-                              {formatDate(new Date(payload[0].payload.date))}
+                              {formatDate(new Date(payload[0].payload?.date))}
                             </span>
                           </div>
                           <div className="flex flex-col">
@@ -79,7 +83,7 @@ export function TrendChart({
                               Value
                             </span>
                             <span className="font-bold">
-                              {valueFormatter(payload[0].value as number)}
+                              {valueFormatter(value)}
                             </span>
                           </div>
                         </div>
@@ -92,7 +96,7 @@ export function TrendChart({
               <Line
                 type="monotone"
                 dataKey="value"
-                stroke="hsl(var(--primary))"
+                stroke={color}
                 strokeWidth={2}
                 dot={false}
               />

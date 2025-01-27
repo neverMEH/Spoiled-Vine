@@ -85,7 +85,7 @@ export const columns: ColumnDef<Product>[] = [
       <DataTableColumnHeader column={column} title="Rating" />
     ),
     cell: ({ row }) => {
-      const rating = parseFloat(row.original.rating) || 0;
+      const rating = row.original.rating || 0;
       return (
         <div className="flex items-center gap-1">
           <Star className="h-4 w-4 fill-primary text-primary" />
@@ -100,7 +100,7 @@ export const columns: ColumnDef<Product>[] = [
       <DataTableColumnHeader column={column} title="Reviews" />
     ),
     cell: ({ row }) => {
-      const count = parseInt(row.original.reviewCount) || 0;
+      const count = row.original.reviewCount || 0;
       return new Intl.NumberFormat("en-US").format(count);
     },
   },

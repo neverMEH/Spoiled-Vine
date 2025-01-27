@@ -76,19 +76,3 @@
     overflow-x: auto;
   }
 }
-
-/* Force desktop layout */
-@media (max-width: 1023px) {
-  html {
-    min-width: 90vw;
-  }
-  
-  body {
-    min-width: 90vw;
-    width: 100%;
-  }
-  
-  #root {
-    min-width: 90vw;
-  }
-}

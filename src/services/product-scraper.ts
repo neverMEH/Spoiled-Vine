@@ -105,6 +105,7 @@ export class ProductScraperService {
   private async processResults(taskId: string) {
     try {
       const results = await apifyService.getResults(taskId);
+
       if (!Array.isArray(results) || results.length === 0) {
         throw new Error('Invalid results format from Apify');
       }
@@ -120,9 +121,9 @@ export class ProductScraperService {
           // Get existing product first
           const { data: existingProduct } = await supabase
             .from('products')
-            .select('*')
+            .select('id')
             .eq('asin', product.asin)
-            .single();
+            .maybeSingle();
 
           // Store rating data from product scraper
           const rating_data = {
@@ -138,12 +139,6 @@ export class ProductScraperService {
             lastUpdated: new Date().toISOString()
           };
           
-          // Initialize review summary (will be updated by review scraper)
-          const review_summary = {
-            verifiedPurchases: 0,
-            lastUpdated: new Date().toISOString()
-          };
-
           const productData = {
             asin: product.asin,
             title: product.title,
@@ -165,9 +160,7 @@ export class ProductScraperService {
             categories: product.categories,
             features: product.features,
             description: product.description,
-            rating_data,
-            review_summary,
-            reviews: [], // Initialize empty reviews array, will be populated by review scraper
+            rating_data: rating_data,
             status: 'active',
             updated_at: new Date().toISOString()
           };
@@ -175,23 +168,21 @@ export class ProductScraperService {
           // Insert or update product with upsert
           const { error: updateError } = await supabase
             .from('products')
-            .upsert(productData, {
-              onConflict: 'asin',
-              ignoreDuplicates: false
-            });
+            .upsert(
+              {
+                ...productData,
+                id: existingProduct?.id || undefined
+              },
+              {
+                onConflict: 'asin',
+                ignoreDuplicates: false
+              }
+            );
 
           if (updateError) {
             throw updateError;
           }
           
-          // Start review scraping after product is updated
-          try {
-            await reviewScraperService.startScraping(product.asin);
-            console.log(`Started review scraping for ASIN: ${product.asin}`);
-          } catch (reviewError) {
-            console.error(`Failed to start review scraping for ASIN ${product.asin}:`, reviewError);
-          }
-
         } catch (error) {
           console.error(`Failed to process product ${product.asin}:`, error);
           throw error;

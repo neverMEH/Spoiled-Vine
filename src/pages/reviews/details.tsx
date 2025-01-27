@@ -3,7 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Container } from '@/components/layout/container';
 import { Section } from '@/components/layout/section';
 import { LoadingSpinner } from '@/components/feedback/loading-spinner';
-import { TrendChart } from '@/components/charts/trend-chart';
 import { Button } from '@/components/ui/button';
 import { ProductHeader } from '@/components/reviews/product-header';
 import { ProductInfo } from '@/components/reviews/product-info';
@@ -91,51 +90,119 @@ export function DetailsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [product, setProduct] = useState<ProductDetails | null>(null);
+  const [violations, setViolations] = useState<Record<string, any>>({});
   const [refreshStatus, setRefreshStatus] = useState<'idle' | 'refreshing'>('idle');
-  const [historicalData, setHistoricalData] = useState<{
-    prices: Array<{ date: string; value: number }>;
-    ratings: Array<{ date: string; value: number }>;
-    reviews: Array<{ date: string; value: number }>;
-    ranks: Array<{ date: string; value: number }>;
-  }>({
-    prices: [],
-    ratings: [],
-    reviews: [],
-    ranks: []
-  });
+  const [violationCount, setViolationCount] = useState(0);
 
   useEffect(() => {
     if (id) {
       fetchProduct(id);
-      fetchHistoricalData(id);
+      fetchViolations(id);
     }
   }, [id]);
+
+  const fetchViolations = async (productId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('review_violations') 
+        .select('*')
+        .eq('product_id', productId)
+        .eq('overridden', false); // Only get non-overridden violations
+
+      if (error) throw error;
+
+      // Count total non-overridden violations
+      const totalViolations = data.reduce((count, violation) => {
+        return violation.overridden ? count : count + 1;
+      }, 0);
+      setViolationCount(totalViolations);
+
+      // Create a map of review_id to violations
+      const violationsMap = data.reduce((acc: Record<string, any>, violation) => {
+        if (!acc[violation.review_id]) {
+          acc[violation.review_id] = {
+            violations: [],
+            scanned_at: violation.scanned_at,
+            overridden: violation.overridden,
+            overridden_by: violation.overridden_by,
+            overridden_at: violation.overridden_at
+          };
+        }
+        
+        acc[violation.review_id].violations.push({
+            type: violation.violation_type,
+            category: violation.violation_category,
+            severity: violation.severity,
+            userBenefit: violation.user_benefit,
+            action: violation.action,
+            details: violation.details
+        });
+        
+        return acc;
+      }, {});
+
+      setViolations(violationsMap);
+    } catch (error) {
+      console.error('Error fetching violations:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch review violations',
+        variant: 'destructive'
+      });
+    }
+  };
 
   const fetchProduct = async (productId: string) => {
     try {
       setIsLoading(true);
-      let { data, error } = await supabase
+      
+      // Fetch product details
+      const { data: productData, error: productError } = await supabase
         .from('products')
-        .select('*')
+        .select(`
+          id,
+          asin,
+          title,
+          brand,
+          price,
+          currency,
+          availability,
+          specifications,
+          dimensions,
+          best_sellers_rank,
+          variations,
+          frequently_bought_together,
+          customer_questions,
+          images,
+          categories,
+          features,
+          description,
+          rating_data,
+          review_summary,
+          status,
+          updated_at
+        `)
         .eq('id', productId)
         .single();
 
-      if (error) throw error;
-      if (!data) throw new Error('Product not found');
+      if (productError) throw productError;
+      if (!productData) throw new Error('Product not found');
       
-      // Ensure reviews is always an array
-      if (!Array.isArray(data.reviews)) {
-        data.reviews = [];
-      }
-      
-      // Sort reviews by date (most recent first)
-      data.reviews.sort((a, b) => {
-        const dateA = new Date(a.review_date || a.date);
-        const dateB = new Date(b.review_date || b.date);
-        return dateB.getTime() - dateA.getTime();
-      });
+      // Fetch reviews
+      const { data: reviewsData, error: reviewsError } = await supabase
+        .from('reviews')
+        .select('*')
+        .eq('product_id', productId)
+        .order('review_date', { ascending: false });
 
-      setProduct(data as ProductDetails);
+      if (reviewsError) throw reviewsError;
+      
+      const product = {
+        ...productData,
+        reviews: reviewsData || []
+      };
+      
+      setProduct(product as ProductDetails);
     } catch (error) {
       console.error('Error fetching product:', error);
       toast({
@@ -145,64 +212,6 @@ export function DetailsPage() {
       });
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const fetchHistoricalData = async (productId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('product_history')
-        .select(`
-          price,
-          rating,
-          review_count,
-          best_sellers_rank,
-          captured_at
-        `)
-        .eq('product_id', productId)
-        .order('captured_at', { ascending: true })
-        .limit(30);
-
-      if (error) throw error;
-
-      const prices: Array<{ date: string; value: number }> = [];
-      const ratings: Array<{ date: string; value: number }> = [];
-      const reviews: Array<{ date: string; value: number }> = [];
-      const ranks: Array<{ date: string; value: number }> = [];
-
-      data.forEach(record => {
-        const date = new Date(record.captured_at).toISOString();
-        
-        if (record.price !== null && !isNaN(record.price)) {
-          prices.push({ date, value: record.price });
-        }
-        
-        if (record.rating !== null && !isNaN(record.rating)) {
-          ratings.push({ date, value: record.rating });
-        }
-        
-        if (record.review_count !== null && !isNaN(record.review_count)) {
-          reviews.push({ date, value: record.review_count });
-        }
-        
-        if (record.best_sellers_rank?.[0]?.rank !== null && !isNaN(record.best_sellers_rank[0].rank)) {
-          ranks.push({ date, value: record.best_sellers_rank[0].rank });
-        }
-      });
-
-      setHistoricalData({
-        prices,
-        ratings,
-        reviews,
-        ranks
-      });
-    } catch (error) {
-      console.error('Error fetching historical data:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to fetch historical data',
-        variant: 'destructive'
-      });
     }
   };
 
@@ -290,50 +299,13 @@ export function DetailsPage() {
             <div className="space-y-6">
               <ProductInfo product={product} />
 
-              {/* Trend Charts */}
-              <div className="grid grid-cols-2 gap-6">
-                <TrendChart
-                  title="Price History"
-                  data={historicalData.prices}
-                  valueFormatter={(value) => formatCurrency(value)}
-                />
-                <TrendChart
-                  title="Rating Trend"
-                  data={historicalData.ratings}
-                  valueFormatter={(value) => value.toFixed(1)}
-                />
-                <TrendChart
-                  title="Best Sellers Rank"
-                  data={historicalData.ranks}
-                  valueFormatter={(value) => `#${value.toLocaleString()}`}
-                />
-                <TrendChart
-                  title="Total Reviews"
-                  data={historicalData.reviews}
-                  valueFormatter={(value) => value.toLocaleString()}
-                />
-              </div>
-
               <ReviewStats
-                rating={product.rating_data.rating}
-                reviewCount={product.rating_data.reviewCount}
-                starsBreakdown={product.rating_data.starsBreakdown}
-                verifiedPurchases={product.review_summary.verifiedPurchases}
-                lastUpdated={product.rating_data.lastUpdated || product.updated_at}
+                productId={product.id}
               />
 
               <ReviewList
                 reviews={product.reviews}
-                onViolationScanComplete={(violations) => {
-                  const updatedReviews = product.reviews.map(review => ({
-                    ...review,
-                    violations: violations[review.review_id]?.violations || []
-                  }));
-                  setProduct({
-                    ...product,
-                    reviews: updatedReviews
-                  });
-                }}
+                violations={violations}
               />
             </div>
           </div>

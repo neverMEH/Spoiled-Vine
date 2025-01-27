@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { productScraperService } from './product-scraper';
+import { reviewScraperService } from './review-scraper';
 
 interface QueueItem {
   id: string;
@@ -51,9 +52,10 @@ export class QueueManager {
   // Add items to queue
   async addToQueue(asins: string[], priority: number = 0): Promise<void> {
     for (const asin of asins) {
-      const id = crypto.randomUUID();
+      // Add to product queue
+      const productId = `product_${crypto.randomUUID()}`;
       const item: QueueItem = {
-        id,
+        id: productId,
         asin,
         priority,
         status: 'queued',
@@ -61,7 +63,20 @@ export class QueueManager {
         attempts: 0,
         queuedAt: new Date(),
       };
-      this.queue.set(id, item);
+      this.queue.set(productId, item);
+
+      // Add to review queue
+      const reviewId = `review_${crypto.randomUUID()}`;
+      const reviewItem: QueueItem = {
+        id: reviewId,
+        asin,
+        priority,
+        status: 'queued',
+        progress: 0,
+        attempts: 0,
+        queuedAt: new Date(),
+      };
+      this.queue.set(reviewId, reviewItem);
 
       // Update product status in database
       await supabase
@@ -128,14 +143,20 @@ export class QueueManager {
     this.notifySubscribers();
 
     try {
-      // Update product status
+      // Update status
       await supabase
         .from('products')
         .update({ status: 'refreshing' })
         .eq('asin', item.asin);
 
-      // Start scraping
-      await productScraperService.startScraping([item.asin]);
+      // Start scraping based on queue item type
+      if (item.id.startsWith('review_')) {
+        await reviewScraperService.startScraping(item.asin);
+        console.log(`Started review scraping for ASIN: ${item.asin}`);
+      } else {
+        await productScraperService.startScraping([item.asin]);
+        console.log(`Started product scraping for ASIN: ${item.asin}`);
+      }
 
       // Poll for completion
       while (item.status === 'processing') {
